@@ -1,8 +1,9 @@
 import Link from "next/link";
-import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AdaptiveImageFrame } from "@/components/ui/adaptive-image-frame";
 import { mediaAssets } from "@/lib/mock-content";
+import { parseCoverImageTransform } from "@/lib/image-presentation";
 
 export default async function NewsPage() {
   const posts = await prisma.post.findMany({
@@ -21,13 +22,12 @@ export default async function NewsPage() {
             </p>
           </div>
           <div className="relative min-h-64 overflow-hidden rounded-3xl">
-            <Image
+            <AdaptiveImageFrame
               src={mediaAssets.news}
               alt="Bản tin và hoạt động môi trường"
-              fill
               priority
               sizes="(max-width: 1024px) 100vw, 45vw"
-              className="object-cover"
+              className="min-h-64 rounded-3xl"
             />
           </div>
         </div>
@@ -37,14 +37,20 @@ export default async function NewsPage() {
           {posts.map((post, index) => (
             <Card key={post.id} className="overflow-hidden border-eco-100/80">
               <div className="relative h-48">
-                <Image
-                  src={post.coverImage || mediaAssets.programs[index % mediaAssets.programs.length]}
-                  alt={post.title}
-                  fill
-                  loading="lazy"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                  className="object-cover"
-                />
+                {(() => {
+                  const transformed = parseCoverImageTransform(post.coverImage || mediaAssets.programs[index % mediaAssets.programs.length]);
+                  return (
+                    <AdaptiveImageFrame
+                      src={transformed.src}
+                      alt={post.title}
+                      sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                      className="h-48 rounded-none"
+                      zoom={transformed.zoom}
+                      offsetX={transformed.offsetX}
+                      offsetY={transformed.offsetY}
+                    />
+                  );
+                })()}
               </div>
               <CardHeader>
                 <CardTitle className="line-clamp-2 text-xl">{post.title}</CardTitle>

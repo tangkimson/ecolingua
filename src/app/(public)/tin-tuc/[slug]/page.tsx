@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import { ExternalLink, Megaphone } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { FACEBOOK_FANPAGE_URL } from "@/lib/constants";
 import { PostContent } from "@/components/posts/post-content";
+import { AdaptiveImageFrame } from "@/components/ui/adaptive-image-frame";
+import { parseCoverImageTransform } from "@/lib/image-presentation";
 
 export default async function NewsDetailPage({ params }: { params: { slug: string } }) {
   const post = await prisma.post.findUnique({
@@ -11,6 +12,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
   });
 
   if (!post || !post.published) return notFound();
+  const cover = parseCoverImageTransform(post.coverImage);
 
   return (
     <article className="bg-white">
@@ -21,13 +23,15 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
             <p className="mt-4 max-w-3xl text-muted-foreground">{post.excerpt}</p>
           </div>
           <div className="relative min-h-64 overflow-hidden rounded-3xl">
-            <Image
-              src={post.coverImage}
+            <AdaptiveImageFrame
+              src={cover.src}
               alt={post.title}
-              fill
               priority
               sizes="(max-width: 1024px) 100vw, 45vw"
-              className="object-cover"
+              className="min-h-64 rounded-3xl"
+              zoom={cover.zoom}
+              offsetX={cover.offsetX}
+              offsetY={cover.offsetY}
             />
           </div>
         </div>

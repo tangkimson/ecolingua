@@ -36,7 +36,10 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
-  RotateCw
+  RotateCw,
+  CheckCircle2,
+  ExternalLink,
+  PencilLine
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +49,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PostContent } from "@/components/posts/post-content";
+import { AdaptiveImageFrame } from "@/components/ui/adaptive-image-frame";
 import { normalizePostContent } from "@/lib/post-content";
+import { formatCoverImageTransform, parseCoverImageTransform } from "@/lib/image-presentation";
 import { cn } from "@/lib/utils";
 
 type PostFormValue = {
@@ -74,6 +79,15 @@ type DraftPayload = PostFormValue & {
 };
 
 type FormErrors = Partial<Record<keyof PostFormValue, string>>;
+type LinkActionState = "idle" | "success";
+
+type EditorLinkItem = {
+  id: string;
+  href: string;
+  text: string;
+  from: number;
+  to: number;
+};
 
 function slugify(input: string) {
   return input
@@ -94,48 +108,42 @@ function getApiErrorMessage(payload: unknown) {
   return firstFieldError ?? null;
 }
 
-async function transformImageFile(file: File, zoom: number, rotate: number) {
-  const objectUrl = URL.createObjectURL(file);
+function normalizeLinkUrl(raw: string) {
+  const input = raw.trim();
+  if (!input) return "";
+  if (/^(https?:\/\/|mailto:|tel:)/i.test(input)) return input;
+  return `https://${input}`;
+}
+
+function isValidLinkUrl(value: string) {
+  if (/^(mailto:|tel:)/i.test(value)) return true;
   try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const element = new window.Image();
-      element.onload = () => resolve(element);
-      element.onerror = () => reject(new Error("Không thể đọc ảnh đã chọn."));
-      element.src = objectUrl;
-    });
-
-    const radians = (rotate * Math.PI) / 180;
-    const scaledWidth = image.naturalWidth * zoom;
-    const scaledHeight = image.naturalHeight * zoom;
-    const sin = Math.abs(Math.sin(radians));
-    const cos = Math.abs(Math.cos(radians));
-    const canvasWidth = Math.max(1, Math.round(scaledWidth * cos + scaledHeight * sin));
-    const canvasHeight = Math.max(1, Math.round(scaledWidth * sin + scaledHeight * cos));
-
-    const canvas = document.createElement("canvas");
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Trình duyệt không hỗ trợ xử lý ảnh.");
-
-    ctx.translate(canvasWidth / 2, canvasHeight / 2);
-    ctx.rotate(radians);
-    ctx.scale(zoom, zoom);
-    ctx.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
-
-    const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((value) => (value ? resolve(value) : reject(new Error("Không thể xuất ảnh."))), outputType, 0.92);
-    });
-
-    const extension = outputType === "image/png" ? "png" : "jpg";
-    return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "image"}-edited.${extension}`, {
-      type: outputType
-    });
-  } finally {
-    URL.revokeObjectURL(objectUrl);
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
   }
+}
+
+function extractEditorLinks(editor: NonNullable<ReturnType<typeof useEditor>>): EditorLinkItem[] {
+  const items: EditorLinkItem[] = [];
+  const linkMarkType = editor.state.schema.marks.link;
+  if (!linkMarkType) return items;
+
+  editor.state.doc.descendants((node, pos) => {
+    if (!node.isText || !node.text) return;
+    const linkMark = node.marks.find((mark) => mark.type === linkMarkType);
+    if (!linkMark) return;
+    items.push({
+      id: `${pos}-${pos + node.nodeSize}-${items.length}`,
+      href: String(linkMark.attrs.href || ""),
+      text: node.text,
+      from: pos,
+      to: pos + node.nodeSize
+    });
+  });
+
+  return items;
 }
 
 const RichImage = Image.extend({
@@ -211,29 +219,36 @@ function ToolbarButton({
 export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProps) {
   const router = useRouter();
   const initialContent = normalizePostContent(defaultValues?.content || "");
+  const initialCover = parseCoverImageTransform(defaultValues?.coverImage ?? "");
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState(defaultValues?.title ?? "");
   const [slug, setSlug] = useState(defaultValues?.slug ?? "");
   const [excerpt, setExcerpt] = useState(defaultValues?.excerpt ?? "");
   const [content, setContent] = useState(initialContent);
-  const [coverImage, setCoverImage] = useState(defaultValues?.coverImage ?? "");
+  const [coverImage, setCoverImage] = useState(initialCover.src);
   const [published, setPublished] = useState(defaultValues?.published || false);
   const [tab, setTab] = useState<"editor" | "preview">("editor");
   const [errors, setErrors] = useState<FormErrors>({});
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [linkInput, setLinkInput] = useState("https://");
+  const [linkActionState, setLinkActionState] = useState<LinkActionState>("idle");
+  const [selectedLinkHref, setSelectedLinkHref] = useState("");
+  const [selectedLinkText, setSelectedLinkText] = useState("");
+  const [selectedLinkRange, setSelectedLinkRange] = useState<{ from: number; to: number } | null>(null);
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
+  const [editingLinkText, setEditingLinkText] = useState("");
+  const [editingLinkUrl, setEditingLinkUrl] = useState("https://");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
-  const [imageWidth, setImageWidth] = useState(80);
-  const [imageRotate, setImageRotate] = useState(0);
-  const [imageAlign, setImageAlign] = useState<"left" | "center" | "right">("center");
   const [insertingImage, setInsertingImage] = useState(false);
   const [selectedImageWidth, setSelectedImageWidth] = useState<number | null>(null);
   const [selectedImageRotate, setSelectedImageRotate] = useState(0);
+  const [selectedImageAlign, setSelectedImageAlign] = useState<"left" | "center" | "right">("center");
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImagePreviewUrl, setCoverImagePreviewUrl] = useState("");
-  const [coverZoom, setCoverZoom] = useState(1);
-  const [coverRotate, setCoverRotate] = useState(0);
+  const [coverZoom, setCoverZoom] = useState(initialCover.zoom);
+  const [coverOffsetX, setCoverOffsetX] = useState(initialCover.offsetX);
+  const [coverOffsetY, setCoverOffsetY] = useState(initialCover.offsetY);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState(() =>
     JSON.stringify({
@@ -241,7 +256,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
       slug: (defaultValues?.slug ?? "").trim(),
       excerpt: (defaultValues?.excerpt ?? "").trim(),
       content: initialContent.trim(),
-      coverImage: (defaultValues?.coverImage ?? "").trim(),
+      coverImage: formatCoverImageTransform(initialCover.src, initialCover.zoom, initialCover.offsetX, initialCover.offsetY),
       published: defaultValues?.published ?? false
     })
   );
@@ -257,10 +272,10 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
         slug: slug.trim(),
         excerpt: excerpt.trim(),
         content: content.trim(),
-        coverImage: coverImage.trim(),
+        coverImage: formatCoverImageTransform(coverImage.trim(), coverZoom, coverOffsetX, coverOffsetY),
         published
       }),
-    [title, slug, excerpt, content, coverImage, published]
+    [title, slug, excerpt, content, coverImage, coverZoom, coverOffsetX, coverOffsetY, published]
   );
   const hasUnsavedChanges = currentSnapshot !== savedSnapshot;
 
@@ -306,6 +321,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
       setContent(currentEditor.getHTML());
     }
   });
+  const linkItems = editor ? extractEditorLinks(editor) : [];
 
   useEffect(() => {
     if (slugTouched) return;
@@ -313,10 +329,10 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
   }, [title, slugTouched]);
 
   useEffect(() => {
-    if (!editor) return;
-    const selectedLink = editor.getAttributes("link").href as string | undefined;
-    setLinkInput(selectedLink || "https://");
-  }, [editor, tab]);
+    if (linkActionState !== "success") return;
+    const timer = window.setTimeout(() => setLinkActionState("idle"), 1400);
+    return () => window.clearTimeout(timer);
+  }, [linkActionState]);
 
   useEffect(() => {
     if (!editor) return;
@@ -325,21 +341,47 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
       if (!editor.isActive("image")) {
         setSelectedImageWidth(null);
         setSelectedImageRotate(0);
+        setSelectedImageAlign("center");
         return;
       }
 
       const attrs = editor.getAttributes("image");
       setSelectedImageWidth(Number(attrs.width || 100));
       setSelectedImageRotate(Number(attrs.rotate || 0));
+      const align = String(attrs.align || "center");
+      setSelectedImageAlign(align === "left" || align === "right" ? align : "center");
+    };
+
+    const updateSelectedLinkState = () => {
+      const hasLink = editor.isActive("link");
+      if (!hasLink) {
+        setSelectedLinkHref("");
+        setSelectedLinkText("");
+        setSelectedLinkRange(null);
+        return;
+      }
+
+      const selectedHref = String(editor.getAttributes("link").href || "");
+      setSelectedLinkHref(selectedHref);
+      setLinkInput(selectedHref || "https://");
+      const { from, to } = editor.state.selection;
+      const selectedText = editor.state.doc.textBetween(from, to, " ").trim();
+      setSelectedLinkText(selectedText);
+      setSelectedLinkRange({ from, to });
     };
 
     updateSelectedImageState();
+    updateSelectedLinkState();
     editor.on("selectionUpdate", updateSelectedImageState);
     editor.on("transaction", updateSelectedImageState);
+    editor.on("selectionUpdate", updateSelectedLinkState);
+    editor.on("transaction", updateSelectedLinkState);
 
     return () => {
       editor.off("selectionUpdate", updateSelectedImageState);
       editor.off("transaction", updateSelectedImageState);
+      editor.off("selectionUpdate", updateSelectedLinkState);
+      editor.off("transaction", updateSelectedLinkState);
     };
   }, [editor]);
 
@@ -457,7 +499,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
       slug: slug.trim(),
       excerpt: excerpt.trim(),
       content,
-      coverImage: coverImage.trim(),
+      coverImage: formatCoverImageTransform(coverImage.trim(), coverZoom, coverOffsetX, coverOffsetY),
       published: nextPublished
     };
 
@@ -529,8 +571,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
 
     try {
       setInsertingImage(true);
-      const transformedFile = await transformImageFile(imageFile, 1, imageRotate);
-      const uploadedUrl = await uploadLocalImage(transformedFile);
+      const uploadedUrl = await uploadLocalImage(imageFile);
 
       editor
         .chain()
@@ -540,15 +581,14 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
           alt: imageFile.name
         })
         .updateAttributes("image", {
-          width: imageWidth,
-          align: imageAlign,
-          rotate: imageRotate
+          width: 100,
+          align: "center",
+          rotate: 0
         })
         .run();
 
       setImageFile(null);
       setImagePreviewUrl("");
-      setImageRotate(0);
       toast.success("Đã chèn ảnh vào nội dung.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Không thể tải ảnh lên.";
@@ -558,18 +598,22 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
     }
   }
 
-  function updateSelectedImageAttributes(nextWidth: number, nextRotate: number) {
+  function updateSelectedImageAttributes(nextWidth: number, nextRotate: number, nextAlign: "left" | "center" | "right" = selectedImageAlign) {
     if (!editor || !editor.isActive("image")) return;
+    const width = Math.max(20, Math.min(100, nextWidth));
+    const rotate = Math.max(-180, Math.min(180, nextRotate));
     editor
       .chain()
       .focus()
       .updateAttributes("image", {
-        width: Math.max(20, Math.min(100, nextWidth)),
-        rotate: Math.max(-180, Math.min(180, nextRotate))
+        width,
+        rotate,
+        align: nextAlign
       })
       .run();
-    setSelectedImageWidth(Math.max(20, Math.min(100, nextWidth)));
-    setSelectedImageRotate(Math.max(-180, Math.min(180, nextRotate)));
+    setSelectedImageWidth(width);
+    setSelectedImageRotate(rotate);
+    setSelectedImageAlign(nextAlign);
   }
 
   async function handleUploadCoverImage() {
@@ -580,8 +624,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
 
     try {
       setUploadingCover(true);
-      const transformedFile = await transformImageFile(coverImageFile, coverZoom, coverRotate);
-      const uploadedUrl = await uploadLocalImage(transformedFile);
+      const uploadedUrl = await uploadLocalImage(coverImageFile);
       setCoverImage(uploadedUrl);
       setCoverImageFile(null);
       if (coverImagePreviewUrl) {
@@ -599,13 +642,109 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
 
   function setLink() {
     if (!editor) return;
-    if (!linkInput.trim()) {
+    const hasSelection = editor.state.selection.from !== editor.state.selection.to;
+    const normalizedUrl = normalizeLinkUrl(linkInput);
+
+    if (!normalizedUrl) {
       editor.chain().focus().unsetLink().run();
       toast.success("Đã gỡ liên kết.");
       return;
     }
-    editor.chain().focus().extendMarkRange("link").setLink({ href: linkInput.trim() }).run();
-    toast.success("Đã cập nhật liên kết.");
+
+    if (!isValidLinkUrl(normalizedUrl)) {
+      toast.error("Liên kết không hợp lệ. Vui lòng nhập đúng định dạng URL.");
+      return;
+    }
+
+    if (!hasSelection && !editor.isActive("link")) {
+      toast.error("Hãy bôi đen đoạn văn bản trước khi áp dụng liên kết.");
+      return;
+    }
+
+    const currentHref = String(editor.getAttributes("link").href || "");
+    if (currentHref && currentHref === normalizedUrl) {
+      setLinkActionState("success");
+      toast.success("Liên kết đã được áp dụng trước đó.");
+      return;
+    }
+
+    editor.chain().focus().extendMarkRange("link").setLink({ href: normalizedUrl }).run();
+    setLinkInput(normalizedUrl);
+    setLinkActionState("success");
+    toast.success("Đã áp dụng liên kết.");
+  }
+
+  function removeSelectedLink() {
+    if (!editor) return;
+    editor.chain().focus().extendMarkRange("link").unsetLink().run();
+    setLinkActionState("idle");
+    toast.success("Đã gỡ liên kết.");
+  }
+
+  function selectLinkRange(item: EditorLinkItem) {
+    if (!editor) return;
+    editor.chain().focus().setTextSelection({ from: item.from, to: item.to }).run();
+  }
+
+  function startEditLink(item: EditorLinkItem) {
+    setEditingLinkId(item.id);
+    setEditingLinkText(item.text);
+    setEditingLinkUrl(item.href || "https://");
+    selectLinkRange(item);
+  }
+
+  function cancelEditLink() {
+    setEditingLinkId(null);
+    setEditingLinkText("");
+    setEditingLinkUrl("https://");
+  }
+
+  function removeLinkItem(item: EditorLinkItem) {
+    if (!editor) return;
+    editor.chain().focus().setTextSelection({ from: item.from, to: item.to }).unsetLink().run();
+    toast.success("Đã gỡ liên kết khỏi đoạn đã chọn.");
+    if (editingLinkId === item.id) cancelEditLink();
+  }
+
+  function saveEditedLink(item: EditorLinkItem) {
+    if (!editor) return;
+    const nextText = editingLinkText.trim();
+    const nextHref = normalizeLinkUrl(editingLinkUrl);
+
+    if (!nextText) {
+      toast.error("Nội dung hiển thị của liên kết không được để trống.");
+      return;
+    }
+    if (!isValidLinkUrl(nextHref)) {
+      toast.error("URL liên kết không hợp lệ.");
+      return;
+    }
+
+    const linkMarkType = editor.state.schema.marks.link;
+    if (!linkMarkType) return;
+
+    const { state, view } = editor;
+    const safeFrom = Math.min(item.from, item.to);
+    const safeTo = Math.max(item.from, item.to);
+    const currentDocSize = state.doc.content.size;
+    const from = Math.max(1, Math.min(safeFrom, currentDocSize));
+    const to = Math.max(1, Math.min(safeTo, currentDocSize));
+
+    let tr = state.tr.removeMark(from, to, linkMarkType);
+
+    if (nextText !== item.text) {
+      const inheritedMarks = state.doc.resolve(from).marks().filter((mark) => mark.type !== linkMarkType);
+      const linkMark = linkMarkType.create({ href: nextHref });
+      const textNode = state.schema.text(nextText, [...inheritedMarks, linkMark]);
+      tr = tr.replaceWith(from, to, textNode);
+    } else {
+      tr = tr.addMark(from, to, linkMarkType.create({ href: nextHref }));
+    }
+
+    view.dispatch(tr);
+    setEditingLinkId(null);
+    setLinkActionState("success");
+    toast.success("Đã cập nhật liên kết trong danh sách.");
   }
 
   function handleBackToList() {
@@ -837,18 +976,112 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                         <Eraser className="size-4" />
                       </ToolbarButton>
                     </div>
-                    <div className="border-b bg-muted/20 p-2">
+                    <div className="space-y-2 border-b bg-muted/20 p-2">
                       <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
-                        <Input value={linkInput} onChange={(event) => setLinkInput(event.target.value)} placeholder="https://..." />
-                        <Button type="button" variant="outline" onClick={setLink}>
-                          Áp dụng link
+                        <Input
+                          value={linkInput}
+                          onChange={(event) => setLinkInput(event.target.value)}
+                          placeholder="https://..."
+                          className={cn(linkActionState === "success" && "border-emerald-500 ring-emerald-500")}
+                        />
+                        <Button type="button" variant={linkActionState === "success" ? "secondary" : "outline"} onClick={setLink}>
+                          {linkActionState === "success" ? (
+                            <>
+                              <CheckCircle2 className="size-4" />
+                              Đã áp dụng
+                            </>
+                          ) : (
+                            "Áp dụng link"
+                          )}
                         </Button>
-                        <Button type="button" variant="ghost" onClick={() => editor?.chain().focus().unsetLink().run()}>
+                        <Button type="button" variant="ghost" onClick={removeSelectedLink}>
                           Gỡ link
                         </Button>
                       </div>
+                      {selectedLinkHref && (
+                        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs">
+                          <p className="font-medium text-emerald-900">Đang chọn đoạn có liên kết</p>
+                          {selectedLinkText && <p className="line-clamp-1 text-emerald-900/90">&quot;{selectedLinkText}&quot;</p>}
+                          <a
+                            href={selectedLinkHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-1 inline-flex items-center gap-1 font-medium text-emerald-700 underline underline-offset-4"
+                          >
+                            Xem trước liên kết
+                            <ExternalLink className="size-3.5" />
+                          </a>
+                        </div>
+                      )}
                     </div>
                     <EditorContent editor={editor} />
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-sm font-semibold">Quản lý liên kết trong bài ({linkItems.length})</p>
+                    </div>
+                    {!linkItems.length ? (
+                      <p className="text-xs text-muted-foreground">Chưa có liên kết nào trong nội dung hiện tại.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {linkItems.map((item) => {
+                          const isSelected =
+                            selectedLinkRange &&
+                            !(item.to <= selectedLinkRange.from || item.from >= selectedLinkRange.to);
+                          const isEditing = editingLinkId === item.id;
+
+                          return (
+                            <div
+                              key={item.id}
+                              className={cn(
+                                "rounded-md border p-2",
+                                isSelected ? "border-eco-400 bg-eco-50" : "border-border bg-white"
+                              )}
+                            >
+                              {isEditing ? (
+                                <div className="space-y-2">
+                                  <Input
+                                    value={editingLinkText}
+                                    onChange={(event) => setEditingLinkText(event.target.value)}
+                                    placeholder="Nội dung hiển thị"
+                                  />
+                                  <Input
+                                    value={editingLinkUrl}
+                                    onChange={(event) => setEditingLinkUrl(event.target.value)}
+                                    placeholder="https://..."
+                                  />
+                                  <div className="flex flex-wrap gap-2">
+                                    <Button type="button" size="sm" onClick={() => saveEditedLink(item)}>
+                                      Lưu
+                                    </Button>
+                                    <Button type="button" size="sm" variant="outline" onClick={cancelEditLink}>
+                                      Hủy
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-1">
+                                  <p className="line-clamp-1 text-sm font-medium">{item.text}</p>
+                                  <p className="line-clamp-1 text-xs text-muted-foreground">{item.href}</p>
+                                  <div className="flex flex-wrap gap-2 pt-1">
+                                    <Button type="button" size="sm" variant="outline" onClick={() => selectLinkRange(item)}>
+                                      Chọn
+                                    </Button>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => startEditLink(item)}>
+                                      <PencilLine className="size-3.5" />
+                                      Sửa
+                                    </Button>
+                                    <Button type="button" size="sm" variant="ghost" onClick={() => removeLinkItem(item)}>
+                                      Gỡ link
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                   {errors.content && <p className="text-xs text-red-600">{errors.content}</p>}
 
@@ -857,8 +1090,10 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                       <ImagePlus className="size-4" />
                       Chèn ảnh trong nội dung
                     </div>
-                    <p className="mb-3 text-xs text-muted-foreground">Bắt buộc chọn ảnh từ máy tính, không nhập URL trực tiếp.</p>
-                    <div className="grid gap-3 md:grid-cols-[1fr_auto_auto_auto] md:items-end">
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      Ảnh được upload nguyên bản, không crop tự động. Zoom/resize/canh lề chỉ chỉnh sau khi đã chèn vào nội dung.
+                    </p>
+                    <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                       <div className="space-y-2">
                         <Label htmlFor="inlineImage">Ảnh từ thiết bị</Label>
                         <Input
@@ -874,78 +1109,22 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                           }}
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="imageWidth">Zoom ({imageWidth}%)</Label>
-                        <Input
-                          id="imageWidth"
-                          type="range"
-                          min={30}
-                          max={100}
-                          value={imageWidth}
-                          onChange={(event) => setImageWidth(Number(event.target.value))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="imageAlign">Canh lề</Label>
-                        <select
-                          id="imageAlign"
-                          value={imageAlign}
-                          onChange={(event) => setImageAlign(event.target.value as "left" | "center" | "right")}
-                          className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm"
-                        >
-                          <option value="left">Trái</option>
-                          <option value="center">Giữa</option>
-                          <option value="right">Phải</option>
-                        </select>
-                      </div>
                       <Button type="button" onClick={handleInsertImage} disabled={!imageFile || insertingImage}>
                         {insertingImage ? "Đang tải..." : "Upload & chèn"}
                       </Button>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Button type="button" size="sm" variant="outline" onClick={() => setImageWidth((prev) => Math.max(30, prev - 5))}>
-                        <ZoomOut className="size-4" />
-                        Thu nhỏ
-                      </Button>
-                      <Button type="button" size="sm" variant="outline" onClick={() => setImageWidth((prev) => Math.min(100, prev + 5))}>
-                        <ZoomIn className="size-4" />
-                        Phóng to
-                      </Button>
-                      <Button type="button" size="sm" variant="outline" onClick={() => setImageRotate((prev) => Math.max(-180, prev - 15))}>
-                        <RotateCcw className="size-4" />
-                        Xoay trái
-                      </Button>
-                      <Button type="button" size="sm" variant="outline" onClick={() => setImageRotate((prev) => Math.min(180, prev + 15))}>
-                        <RotateCw className="size-4" />
-                        Xoay phải
-                      </Button>
-                    </div>
-                    <div className="mt-3 space-y-2">
-                      <Label htmlFor="imageRotate">Góc xoay ({imageRotate}°)</Label>
-                      <Input
-                        id="imageRotate"
-                        type="range"
-                        min={-180}
-                        max={180}
-                        value={imageRotate}
-                        onChange={(event) => setImageRotate(Number(event.target.value))}
-                      />
-                    </div>
 
                     {imagePreviewUrl && (
                       <div className="mt-3 rounded-lg border bg-muted/30 p-3">
-                        <p className="mb-2 text-xs text-muted-foreground">Xem trước trước khi chèn:</p>
+                        <p className="mb-2 text-xs text-muted-foreground">Xem trước ảnh nguyên bản trước khi chèn:</p>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={imagePreviewUrl}
                           alt="Image preview"
                           style={{
-                            width: `${imageWidth}%`,
                             maxWidth: "100%",
-                            marginLeft: imageAlign === "right" ? "auto" : imageAlign === "center" ? "auto" : "0",
-                            marginRight: imageAlign === "left" ? "auto" : imageAlign === "center" ? "auto" : "0",
-                            transform: `rotate(${imageRotate}deg)`,
-                            transformOrigin: "center"
+                            height: "auto",
+                            margin: "0 auto"
                           }}
                           className="rounded-md"
                         />
@@ -955,6 +1134,50 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                     {selectedImageWidth !== null && (
                       <div className="mt-4 rounded-lg border bg-white p-3">
                         <p className="mb-2 text-xs font-medium text-muted-foreground">Chỉnh ảnh đang chọn trong nội dung</p>
+                        <div className="mb-3 grid gap-2 md:grid-cols-3">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={selectedImageAlign === "left" ? "secondary" : "outline"}
+                            onClick={() => updateSelectedImageAttributes(selectedImageWidth, selectedImageRotate, "left")}
+                          >
+                            Căn trái
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={selectedImageAlign === "center" ? "secondary" : "outline"}
+                            onClick={() => updateSelectedImageAttributes(selectedImageWidth, selectedImageRotate, "center")}
+                          >
+                            Căn giữa
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={selectedImageAlign === "right" ? "secondary" : "outline"}
+                            onClick={() => updateSelectedImageAttributes(selectedImageWidth, selectedImageRotate, "right")}
+                          >
+                            Căn phải
+                          </Button>
+                        </div>
+                        <div className="mb-3 flex flex-wrap gap-2">
+                          <Button type="button" size="sm" variant="outline" onClick={() => updateSelectedImageAttributes(selectedImageWidth - 5, selectedImageRotate)}>
+                            <ZoomOut className="size-4" />
+                            Thu nhỏ
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" onClick={() => updateSelectedImageAttributes(selectedImageWidth + 5, selectedImageRotate)}>
+                            <ZoomIn className="size-4" />
+                            Phóng to
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" onClick={() => updateSelectedImageAttributes(selectedImageWidth, selectedImageRotate - 15)}>
+                            <RotateCcw className="size-4" />
+                            Xoay trái
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" onClick={() => updateSelectedImageAttributes(selectedImageWidth, selectedImageRotate + 15)}>
+                            <RotateCw className="size-4" />
+                            Xoay phải
+                          </Button>
+                        </div>
                         <div className="space-y-2">
                           <Label htmlFor="selectedImageWidth">Zoom ảnh đang chọn ({selectedImageWidth}%)</Label>
                           <Input
@@ -1030,70 +1253,82 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                     setCoverImagePreviewUrl(URL.createObjectURL(file));
                     setCoverImage("");
                     setCoverZoom(1);
-                    setCoverRotate(0);
+                    setCoverOffsetX(0);
+                    setCoverOffsetY(0);
                   }}
                 />
-                <p className="text-xs text-muted-foreground">Bắt buộc upload từ local. Khuyến nghị ảnh ngang tỷ lệ 16:9.</p>
+                <p className="text-xs text-muted-foreground">
+                  Bắt buộc upload từ local. Ảnh giữ đúng tỉ lệ gốc, không kéo giãn/crop tự động.
+                </p>
                 {errors.coverImage && <p className="text-xs text-red-600">{errors.coverImage}</p>}
               </div>
-              {coverImageFile && (
+              {(coverImageFile || coverImage) && (
                 <div className="mt-3 space-y-3 rounded-lg border bg-muted/30 p-3">
                   <div className="space-y-2">
                     <Label htmlFor="coverZoom">Zoom ảnh bìa ({Math.round(coverZoom * 100)}%)</Label>
                     <Input
                       id="coverZoom"
                       type="range"
-                      min={50}
-                      max={200}
+                      min={60}
+                      max={180}
                       value={Math.round(coverZoom * 100)}
                       onChange={(event) => setCoverZoom(Number(event.target.value) / 100)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="coverRotate">Góc xoay ảnh bìa ({coverRotate}°)</Label>
+                    <Label htmlFor="coverOffsetX">Dịch ngang ({coverOffsetX}%)</Label>
                     <Input
-                      id="coverRotate"
+                      id="coverOffsetX"
                       type="range"
-                      min={-180}
-                      max={180}
-                      value={coverRotate}
-                      onChange={(event) => setCoverRotate(Number(event.target.value))}
+                      min={-50}
+                      max={50}
+                      value={coverOffsetX}
+                      onChange={(event) => setCoverOffsetX(Number(event.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="coverOffsetY">Dịch dọc ({coverOffsetY}%)</Label>
+                    <Input
+                      id="coverOffsetY"
+                      type="range"
+                      min={-50}
+                      max={50}
+                      value={coverOffsetY}
+                      onChange={(event) => setCoverOffsetY(Number(event.target.value))}
                     />
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button type="button" size="sm" variant="outline" onClick={() => setCoverZoom((prev) => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setCoverZoom((prev) => Math.max(0.6, Number((prev - 0.1).toFixed(2))))}>
                       <ZoomOut className="size-4" />
                       Thu nhỏ
                     </Button>
-                    <Button type="button" size="sm" variant="outline" onClick={() => setCoverZoom((prev) => Math.min(2, Number((prev + 0.1).toFixed(2))))}>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setCoverZoom((prev) => Math.min(1.8, Number((prev + 0.1).toFixed(2))))}>
                       <ZoomIn className="size-4" />
                       Phóng to
                     </Button>
-                    <Button type="button" size="sm" variant="outline" onClick={() => setCoverRotate((prev) => Math.max(-180, prev - 15))}>
-                      <RotateCcw className="size-4" />
-                      Xoay trái
-                    </Button>
-                    <Button type="button" size="sm" variant="outline" onClick={() => setCoverRotate((prev) => Math.min(180, prev + 15))}>
-                      <RotateCw className="size-4" />
-                      Xoay phải
+                    <Button type="button" size="sm" variant="outline" onClick={() => {
+                      setCoverOffsetX(0);
+                      setCoverOffsetY(0);
+                    }}>
+                      Căn giữa
                     </Button>
                   </div>
-                  <Button type="button" onClick={handleUploadCoverImage} disabled={uploadingCover}>
-                    {uploadingCover ? "Đang tải..." : "Tải ảnh bìa lên"}
-                  </Button>
+                  {coverImageFile && (
+                    <Button type="button" onClick={handleUploadCoverImage} disabled={uploadingCover}>
+                      {uploadingCover ? "Đang tải..." : "Tải ảnh bìa lên"}
+                    </Button>
+                  )}
                 </div>
               )}
               {(coverImagePreviewUrl || coverImage) && (
                 <div className="mt-3 overflow-hidden rounded-lg border">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <AdaptiveImageFrame
                     src={coverImagePreviewUrl || coverImage}
                     alt="Cover preview"
-                    className="h-40 w-full object-cover"
-                    style={{
-                      transform: coverImagePreviewUrl ? `scale(${coverZoom}) rotate(${coverRotate}deg)` : undefined,
-                      transformOrigin: "center"
-                    }}
+                    className="h-40 rounded-none"
+                    zoom={coverZoom}
+                    offsetX={coverOffsetX}
+                    offsetY={coverOffsetY}
                   />
                 </div>
               )}
