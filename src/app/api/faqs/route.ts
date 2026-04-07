@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { faqSchema } from "@/lib/validations";
 import { requireAdmin } from "@/lib/admin";
@@ -34,6 +35,10 @@ export async function POST(req: Request) {
   const faq = await prisma.faq.create({
     data: parsed.data
   });
+
+  revalidatePath("/tham-gia");
+  revalidatePath("/lien-he");
+  revalidatePath("/admin/faqs");
 
   return NextResponse.json(faq, { status: 201 });
 }

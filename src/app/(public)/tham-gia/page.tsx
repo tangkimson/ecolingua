@@ -3,7 +3,7 @@ import { ExternalLink, Megaphone } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { FACEBOOK_FANPAGE_URL } from "@/lib/constants";
 import { VolunteerForm } from "@/components/forms/volunteer-form";
-import { faqsJoin, mediaAssets } from "@/lib/mock-content";
+import { mediaAssets } from "@/lib/mock-content";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export default async function JoinPage() {
   ]);
   const dbFaqs = dbFaqsResult.status === "fulfilled" ? dbFaqsResult.value : [];
   const positions = positionsResult.status === "fulfilled" ? positionsResult.value : [];
-  const items = dbFaqs.length ? dbFaqs.map((item) => ({ q: item.question, a: item.answer })) : faqsJoin;
+  const items = dbFaqs.map((item) => ({ q: item.question, a: item.answer }));
   const positionsText = positions.map((item) => item.title).join(" - ");
 
   return (
@@ -83,12 +83,16 @@ export default async function JoinPage() {
         <div className="container">
           <h2 className="text-2xl font-bold text-eco-900">Câu hỏi thường gặp</h2>
           <Accordion type="single" collapsible className="mt-4 rounded-2xl border border-eco-100 bg-white px-6">
-            {items.map((item) => (
-              <AccordionItem key={item.q} value={item.q}>
-                <AccordionTrigger>{item.q}</AccordionTrigger>
-                <AccordionContent>{item.a}</AccordionContent>
-              </AccordionItem>
-            ))}
+            {items.length ? (
+              items.map((item) => (
+                <AccordionItem key={item.q} value={item.q}>
+                  <AccordionTrigger>{item.q}</AccordionTrigger>
+                  <AccordionContent>{item.a}</AccordionContent>
+                </AccordionItem>
+              ))
+            ) : (
+              <p className="py-6 text-sm text-muted-foreground">Chưa có câu hỏi nào cho mục này.</p>
+            )}
           </Accordion>
         </div>
       </section>

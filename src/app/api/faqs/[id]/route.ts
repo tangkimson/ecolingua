@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
 import { faqSchema } from "@/lib/validations";
@@ -33,6 +34,10 @@ export async function PUT(req: Request, { params }: Context) {
     data: parsed.data
   });
 
+  revalidatePath("/tham-gia");
+  revalidatePath("/lien-he");
+  revalidatePath("/admin/faqs");
+
   return NextResponse.json(faq);
 }
 
@@ -59,6 +64,10 @@ export async function PATCH(req: Request, { params }: Context) {
     }
   });
 
+  revalidatePath("/tham-gia");
+  revalidatePath("/lien-he");
+  revalidatePath("/admin/faqs");
+
   return NextResponse.json(faq);
 }
 
@@ -75,5 +84,9 @@ export async function DELETE(_: Request, { params }: Context) {
   if (!existingFaq) return NextResponse.json({ error: "FAQ not found" }, { status: 404 });
 
   await prisma.faq.delete({ where: { id: params.id } });
+  revalidatePath("/tham-gia");
+  revalidatePath("/lien-he");
+  revalidatePath("/admin/faqs");
+
   return NextResponse.json({ success: true });
 }

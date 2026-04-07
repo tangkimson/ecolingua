@@ -101,7 +101,7 @@ export function LeadsTable({ leads: initialLeads }: { leads: LeadItem[] }) {
   }, [leads, query, statusFilter, sourceFilter]);
 
   const selectedLead = useMemo(
-    () => filteredLeads.find((item) => item.id === selectedLeadId) || filteredLeads[0] || null,
+    () => filteredLeads.find((item) => item.id === selectedLeadId) || null,
     [filteredLeads, selectedLeadId]
   );
 
