@@ -2,8 +2,15 @@ import Image from "next/image";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ContactForm } from "@/components/forms/contact-form";
 import { faqsContact, mediaAssets } from "@/lib/mock-content";
+import { prisma } from "@/lib/prisma";
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const dbFaqs = await prisma.faq.findMany({
+    where: { location: "CONTACT", published: true },
+    orderBy: [{ order: "asc" }, { updatedAt: "desc" }]
+  });
+  const items = dbFaqs.length ? dbFaqs.map((item) => ({ q: item.question, a: item.answer })) : faqsContact;
+
   return (
     <div className="bg-eco-50/70">
       <section className="section-padding">
@@ -43,7 +50,7 @@ export default function ContactPage() {
         <div className="container">
           <h2 className="text-2xl font-bold text-eco-900">Câu hỏi thường gặp</h2>
           <Accordion type="single" collapsible className="mt-4 rounded-2xl border border-eco-100 bg-white px-6">
-            {faqsContact.map((item) => (
+            {items.map((item) => (
               <AccordionItem key={item.q} value={item.q}>
                 <AccordionTrigger>{item.q}</AccordionTrigger>
                 <AccordionContent>{item.a}</AccordionContent>

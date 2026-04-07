@@ -67,6 +67,7 @@ TOTP_ENCRYPTION_KEY="another-long-random-secret"
 NEXT_PUBLIC_TURNSTILE_SITE_KEY="your-turnstile-site-key"
 TURNSTILE_SECRET_KEY="your-turnstile-secret-key"
 ADMIN_NOTIFICATION_EMAIL="xanhvietnam.org@gmail.com"
+ADMIN_NOTIFICATION_EMAILS="ecolinguavietnam@gmail.com,backup@gmail.com"
 NEXT_PUBLIC_SITE_URL="http://localhost:3000"
 ```
 
@@ -161,8 +162,11 @@ Dung Neon/Supabase/Railway va lay connection string PostgreSQL.
 - `NEXTAUTH_SECRET`
 - `TOTP_ENCRYPTION_KEY`
 - `ADMIN_NOTIFICATION_EMAIL`
+- `ADMIN_NOTIFICATION_EMAILS` (optional, comma-separated)
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+- `TURNSTILE_SECRET_KEY`
 - `NEXT_PUBLIC_SITE_URL`
 - (tuỳ chon) `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`
 

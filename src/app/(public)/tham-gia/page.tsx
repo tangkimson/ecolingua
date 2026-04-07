@@ -4,8 +4,15 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { FACEBOOK_FANPAGE_URL } from "@/lib/constants";
 import { VolunteerForm } from "@/components/forms/volunteer-form";
 import { faqsJoin, mediaAssets } from "@/lib/mock-content";
+import { prisma } from "@/lib/prisma";
 
-export default function JoinPage() {
+export default async function JoinPage() {
+  const dbFaqs = await prisma.faq.findMany({
+    where: { location: "JOIN", published: true },
+    orderBy: [{ order: "asc" }, { updatedAt: "desc" }]
+  });
+  const items = dbFaqs.length ? dbFaqs.map((item) => ({ q: item.question, a: item.answer })) : faqsJoin;
+
   return (
     <div className="bg-eco-50/70">
       <section className="section-padding">
@@ -56,7 +63,7 @@ export default function JoinPage() {
         <div className="container">
           <h2 className="text-2xl font-bold text-eco-900">Câu hỏi thường gặp</h2>
           <Accordion type="single" collapsible className="mt-4 rounded-2xl border border-eco-100 bg-white px-6">
-            {faqsJoin.map((item) => (
+            {items.map((item) => (
               <AccordionItem key={item.q} value={item.q}>
                 <AccordionTrigger>{item.q}</AccordionTrigger>
                 <AccordionContent>{item.a}</AccordionContent>
