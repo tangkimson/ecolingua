@@ -11,7 +11,7 @@ export default function NewPostPage() {
           slug: "",
           excerpt: "",
           content: "",
-          coverImage: "https://images.unsplash.com/photo-1473448912268-2022ce9509d8",
+          coverImage: "",
           published: false
         }}
       />

@@ -32,7 +32,11 @@ import {
   Redo2,
   Eraser,
   ArrowLeft,
-  AlertTriangle
+  AlertTriangle,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  RotateCw
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -90,6 +94,50 @@ function getApiErrorMessage(payload: unknown) {
   return firstFieldError ?? null;
 }
 
+async function transformImageFile(file: File, zoom: number, rotate: number) {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new window.Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error("Không thể đọc ảnh đã chọn."));
+      element.src = objectUrl;
+    });
+
+    const radians = (rotate * Math.PI) / 180;
+    const scaledWidth = image.naturalWidth * zoom;
+    const scaledHeight = image.naturalHeight * zoom;
+    const sin = Math.abs(Math.sin(radians));
+    const cos = Math.abs(Math.cos(radians));
+    const canvasWidth = Math.max(1, Math.round(scaledWidth * cos + scaledHeight * sin));
+    const canvasHeight = Math.max(1, Math.round(scaledWidth * sin + scaledHeight * cos));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Trình duyệt không hỗ trợ xử lý ảnh.");
+
+    ctx.translate(canvasWidth / 2, canvasHeight / 2);
+    ctx.rotate(radians);
+    ctx.scale(zoom, zoom);
+    ctx.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
+
+    const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((value) => (value ? resolve(value) : reject(new Error("Không thể xuất ảnh."))), outputType, 0.92);
+    });
+
+    const extension = outputType === "image/png" ? "png" : "jpg";
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "image"}-edited.${extension}`, {
+      type: outputType
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 const RichImage = Image.extend({
   addAttributes() {
     return {
@@ -99,12 +147,16 @@ const RichImage = Image.extend({
       },
       align: {
         default: "center"
+      },
+      rotate: {
+        default: 0
       }
     };
   },
   renderHTML({ HTMLAttributes }) {
     const align = HTMLAttributes.align || "center";
     const width = Number(HTMLAttributes.width || 100);
+    const rotate = Number(HTMLAttributes.rotate || 0);
     const preservedStyle = HTMLAttributes.style ? `${HTMLAttributes.style};` : "";
     const alignmentStyle =
       align === "left"
@@ -116,7 +168,7 @@ const RichImage = Image.extend({
     return [
       "img",
       mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
-        style: `${preservedStyle}width:${width}%;max-width:100%;height:auto;${alignmentStyle}`
+        style: `${preservedStyle}width:${width}%;max-width:100%;height:auto;transform:rotate(${rotate}deg);transform-origin:center;${alignmentStyle}`
       })
     ];
   }
@@ -173,8 +225,16 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
   const [imageWidth, setImageWidth] = useState(80);
+  const [imageRotate, setImageRotate] = useState(0);
   const [imageAlign, setImageAlign] = useState<"left" | "center" | "right">("center");
   const [insertingImage, setInsertingImage] = useState(false);
+  const [selectedImageWidth, setSelectedImageWidth] = useState<number | null>(null);
+  const [selectedImageRotate, setSelectedImageRotate] = useState(0);
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverImagePreviewUrl, setCoverImagePreviewUrl] = useState("");
+  const [coverZoom, setCoverZoom] = useState(1);
+  const [coverRotate, setCoverRotate] = useState(0);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState(() =>
     JSON.stringify({
       title: (defaultValues?.title ?? "").trim(),
@@ -203,6 +263,20 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
     [title, slug, excerpt, content, coverImage, published]
   );
   const hasUnsavedChanges = currentSnapshot !== savedSnapshot;
+
+  async function uploadLocalImage(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch("/api/admin/uploads", {
+      method: "POST",
+      body: formData
+    });
+    const result = (await res.json()) as { url?: string; error?: string };
+    if (!res.ok || !result.url) {
+      throw new Error(result.error || "Không thể tải ảnh lên.");
+    }
+    return result.url;
+  }
 
   const editor = useEditor({
     extensions: [
@@ -243,6 +317,31 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
     const selectedLink = editor.getAttributes("link").href as string | undefined;
     setLinkInput(selectedLink || "https://");
   }, [editor, tab]);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const updateSelectedImageState = () => {
+      if (!editor.isActive("image")) {
+        setSelectedImageWidth(null);
+        setSelectedImageRotate(0);
+        return;
+      }
+
+      const attrs = editor.getAttributes("image");
+      setSelectedImageWidth(Number(attrs.width || 100));
+      setSelectedImageRotate(Number(attrs.rotate || 0));
+    };
+
+    updateSelectedImageState();
+    editor.on("selectionUpdate", updateSelectedImageState);
+    editor.on("transaction", updateSelectedImageState);
+
+    return () => {
+      editor.off("selectionUpdate", updateSelectedImageState);
+      editor.off("transaction", updateSelectedImageState);
+    };
+  }, [editor]);
 
   useEffect(() => {
     const savedDraft = window.localStorage.getItem(draftKey);
@@ -293,8 +392,11 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
       if (imagePreviewUrl) {
         URL.revokeObjectURL(imagePreviewUrl);
       }
+      if (coverImagePreviewUrl) {
+        URL.revokeObjectURL(coverImagePreviewUrl);
+      }
     };
-  }, [imagePreviewUrl]);
+  }, [imagePreviewUrl, coverImagePreviewUrl]);
 
   function validate(payload: PostFormValue) {
     const nextErrors: FormErrors = {};
@@ -427,38 +529,71 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
 
     try {
       setInsertingImage(true);
-      const formData = new FormData();
-      formData.append("file", imageFile);
-
-      const res = await fetch("/api/admin/uploads", {
-        method: "POST",
-        body: formData
-      });
-
-      const result = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !result.url) throw new Error(result.error || "Upload failed");
+      const transformedFile = await transformImageFile(imageFile, 1, imageRotate);
+      const uploadedUrl = await uploadLocalImage(transformedFile);
 
       editor
         .chain()
         .focus()
         .setImage({
-          src: result.url,
+          src: uploadedUrl,
           alt: imageFile.name
         })
         .updateAttributes("image", {
           width: imageWidth,
-          align: imageAlign
+          align: imageAlign,
+          rotate: imageRotate
         })
         .run();
 
       setImageFile(null);
       setImagePreviewUrl("");
+      setImageRotate(0);
       toast.success("Đã chèn ảnh vào nội dung.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Không thể tải ảnh lên.";
       toast.error(message);
     } finally {
       setInsertingImage(false);
+    }
+  }
+
+  function updateSelectedImageAttributes(nextWidth: number, nextRotate: number) {
+    if (!editor || !editor.isActive("image")) return;
+    editor
+      .chain()
+      .focus()
+      .updateAttributes("image", {
+        width: Math.max(20, Math.min(100, nextWidth)),
+        rotate: Math.max(-180, Math.min(180, nextRotate))
+      })
+      .run();
+    setSelectedImageWidth(Math.max(20, Math.min(100, nextWidth)));
+    setSelectedImageRotate(Math.max(-180, Math.min(180, nextRotate)));
+  }
+
+  async function handleUploadCoverImage() {
+    if (!coverImageFile) {
+      toast.error("Vui lòng chọn ảnh bìa từ máy tính.");
+      return;
+    }
+
+    try {
+      setUploadingCover(true);
+      const transformedFile = await transformImageFile(coverImageFile, coverZoom, coverRotate);
+      const uploadedUrl = await uploadLocalImage(transformedFile);
+      setCoverImage(uploadedUrl);
+      setCoverImageFile(null);
+      if (coverImagePreviewUrl) {
+        URL.revokeObjectURL(coverImagePreviewUrl);
+      }
+      setCoverImagePreviewUrl("");
+      toast.success("Đã tải lên ảnh bìa.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Không thể tải ảnh bìa lên.";
+      toast.error(message);
+    } finally {
+      setUploadingCover(false);
     }
   }
 
@@ -722,6 +857,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                       <ImagePlus className="size-4" />
                       Chèn ảnh trong nội dung
                     </div>
+                    <p className="mb-3 text-xs text-muted-foreground">Bắt buộc chọn ảnh từ máy tính, không nhập URL trực tiếp.</p>
                     <div className="grid gap-3 md:grid-cols-[1fr_auto_auto_auto] md:items-end">
                       <div className="space-y-2">
                         <Label htmlFor="inlineImage">Ảnh từ thiết bị</Label>
@@ -739,7 +875,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="imageWidth">Kích thước ({imageWidth}%)</Label>
+                        <Label htmlFor="imageWidth">Zoom ({imageWidth}%)</Label>
                         <Input
                           id="imageWidth"
                           type="range"
@@ -766,6 +902,35 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                         {insertingImage ? "Đang tải..." : "Upload & chèn"}
                       </Button>
                     </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button type="button" size="sm" variant="outline" onClick={() => setImageWidth((prev) => Math.max(30, prev - 5))}>
+                        <ZoomOut className="size-4" />
+                        Thu nhỏ
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => setImageWidth((prev) => Math.min(100, prev + 5))}>
+                        <ZoomIn className="size-4" />
+                        Phóng to
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => setImageRotate((prev) => Math.max(-180, prev - 15))}>
+                        <RotateCcw className="size-4" />
+                        Xoay trái
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => setImageRotate((prev) => Math.min(180, prev + 15))}>
+                        <RotateCw className="size-4" />
+                        Xoay phải
+                      </Button>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      <Label htmlFor="imageRotate">Góc xoay ({imageRotate}°)</Label>
+                      <Input
+                        id="imageRotate"
+                        type="range"
+                        min={-180}
+                        max={180}
+                        value={imageRotate}
+                        onChange={(event) => setImageRotate(Number(event.target.value))}
+                      />
+                    </div>
 
                     {imagePreviewUrl && (
                       <div className="mt-3 rounded-lg border bg-muted/30 p-3">
@@ -778,10 +943,40 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                             width: `${imageWidth}%`,
                             maxWidth: "100%",
                             marginLeft: imageAlign === "right" ? "auto" : imageAlign === "center" ? "auto" : "0",
-                            marginRight: imageAlign === "left" ? "auto" : imageAlign === "center" ? "auto" : "0"
+                            marginRight: imageAlign === "left" ? "auto" : imageAlign === "center" ? "auto" : "0",
+                            transform: `rotate(${imageRotate}deg)`,
+                            transformOrigin: "center"
                           }}
                           className="rounded-md"
                         />
+                      </div>
+                    )}
+
+                    {selectedImageWidth !== null && (
+                      <div className="mt-4 rounded-lg border bg-white p-3">
+                        <p className="mb-2 text-xs font-medium text-muted-foreground">Chỉnh ảnh đang chọn trong nội dung</p>
+                        <div className="space-y-2">
+                          <Label htmlFor="selectedImageWidth">Zoom ảnh đang chọn ({selectedImageWidth}%)</Label>
+                          <Input
+                            id="selectedImageWidth"
+                            type="range"
+                            min={20}
+                            max={100}
+                            value={selectedImageWidth}
+                            onChange={(event) => updateSelectedImageAttributes(Number(event.target.value), selectedImageRotate)}
+                          />
+                        </div>
+                        <div className="mt-3 space-y-2">
+                          <Label htmlFor="selectedImageRotate">Góc xoay ảnh đang chọn ({selectedImageRotate}°)</Label>
+                          <Input
+                            id="selectedImageRotate"
+                            type="range"
+                            min={-180}
+                            max={180}
+                            value={selectedImageRotate}
+                            onChange={(event) => updateSelectedImageAttributes(selectedImageWidth, Number(event.target.value))}
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -822,22 +1017,84 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
             <section className="rounded-xl border p-4">
               <h3 className="text-base font-semibold">Ảnh bìa</h3>
               <div className="mt-3 space-y-2">
-                <Label htmlFor="coverImage">URL ảnh bìa</Label>
+                <Label htmlFor="coverImageUpload">Tải ảnh bìa từ máy</Label>
                 <Input
-                  id="coverImage"
-                  name="coverImage"
-                  type="url"
-                  value={coverImage}
-                  onChange={(event) => setCoverImage(event.target.value)}
-                  placeholder="https://..."
+                  id="coverImageUpload"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    if (coverImagePreviewUrl) URL.revokeObjectURL(coverImagePreviewUrl);
+                    setCoverImageFile(file);
+                    setCoverImagePreviewUrl(URL.createObjectURL(file));
+                    setCoverImage("");
+                    setCoverZoom(1);
+                    setCoverRotate(0);
+                  }}
                 />
-                <p className="text-xs text-muted-foreground">Nên dùng ảnh ngang tỷ lệ 16:9 để hiển thị đẹp trên trang tin tức.</p>
+                <p className="text-xs text-muted-foreground">Bắt buộc upload từ local. Khuyến nghị ảnh ngang tỷ lệ 16:9.</p>
                 {errors.coverImage && <p className="text-xs text-red-600">{errors.coverImage}</p>}
               </div>
-              {coverImage && (
+              {coverImageFile && (
+                <div className="mt-3 space-y-3 rounded-lg border bg-muted/30 p-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="coverZoom">Zoom ảnh bìa ({Math.round(coverZoom * 100)}%)</Label>
+                    <Input
+                      id="coverZoom"
+                      type="range"
+                      min={50}
+                      max={200}
+                      value={Math.round(coverZoom * 100)}
+                      onChange={(event) => setCoverZoom(Number(event.target.value) / 100)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="coverRotate">Góc xoay ảnh bìa ({coverRotate}°)</Label>
+                    <Input
+                      id="coverRotate"
+                      type="range"
+                      min={-180}
+                      max={180}
+                      value={coverRotate}
+                      onChange={(event) => setCoverRotate(Number(event.target.value))}
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" size="sm" variant="outline" onClick={() => setCoverZoom((prev) => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}>
+                      <ZoomOut className="size-4" />
+                      Thu nhỏ
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setCoverZoom((prev) => Math.min(2, Number((prev + 0.1).toFixed(2))))}>
+                      <ZoomIn className="size-4" />
+                      Phóng to
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setCoverRotate((prev) => Math.max(-180, prev - 15))}>
+                      <RotateCcw className="size-4" />
+                      Xoay trái
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setCoverRotate((prev) => Math.min(180, prev + 15))}>
+                      <RotateCw className="size-4" />
+                      Xoay phải
+                    </Button>
+                  </div>
+                  <Button type="button" onClick={handleUploadCoverImage} disabled={uploadingCover}>
+                    {uploadingCover ? "Đang tải..." : "Tải ảnh bìa lên"}
+                  </Button>
+                </div>
+              )}
+              {(coverImagePreviewUrl || coverImage) && (
                 <div className="mt-3 overflow-hidden rounded-lg border">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={coverImage} alt="Cover preview" className="h-40 w-full object-cover" />
+                  <img
+                    src={coverImagePreviewUrl || coverImage}
+                    alt="Cover preview"
+                    className="h-40 w-full object-cover"
+                    style={{
+                      transform: coverImagePreviewUrl ? `scale(${coverZoom}) rotate(${coverRotate}deg)` : undefined,
+                      transformOrigin: "center"
+                    }}
+                  />
                 </div>
               )}
             </section>
