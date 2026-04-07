@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
-import { Eye, Trash2 } from "lucide-react";
+import { Eye, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -100,10 +100,42 @@ export function LeadsTable({ leads: initialLeads }: { leads: LeadItem[] }) {
     });
   }, [leads, query, statusFilter, sourceFilter]);
 
+  const leadStats = useMemo(() => {
+    let newCount = 0;
+    let inProgressCount = 0;
+    let resolvedCount = 0;
+
+    for (const lead of leads) {
+      if (lead.status === "NEW") newCount += 1;
+      if (lead.status === "IN_REVIEW" || lead.status === "CONTACTED") inProgressCount += 1;
+      if (lead.status === "RESOLVED") resolvedCount += 1;
+    }
+
+    return {
+      total: leads.length,
+      newCount,
+      inProgressCount,
+      resolvedCount
+    };
+  }, [leads]);
+
   const selectedLead = useMemo(
-    () => filteredLeads.find((item) => item.id === selectedLeadId) || null,
-    [filteredLeads, selectedLeadId]
+    () => leads.find((item) => item.id === selectedLeadId) || null,
+    [leads, selectedLeadId]
   );
+
+  useEffect(() => {
+    if (!selectedLeadId) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedLeadId(null);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedLeadId]);
 
   async function updateLeadStatus(id: string, status: string) {
     try {
@@ -150,13 +182,21 @@ export function LeadsTable({ leads: initialLeads }: { leads: LeadItem[] }) {
   return (
     <div className="space-y-4">
       <div className="rounded-xl border bg-white p-4">
-        <div className="grid gap-3 md:grid-cols-3">
-          <Input placeholder="Tìm theo tên, email, SĐT..." value={query} onChange={(event) => setQuery(event.target.value)} />
+        <div className="grid gap-3 md:grid-cols-[1fr_220px_220px_auto]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              placeholder="Tìm theo tên, email, SĐT..."
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </div>
           <select
             aria-label="Lọc lead theo trạng thái"
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
-            className="h-10 rounded-md border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-10 rounded-lg border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -168,7 +208,7 @@ export function LeadsTable({ leads: initialLeads }: { leads: LeadItem[] }) {
             aria-label="Lọc lead theo nguồn gửi"
             value={sourceFilter}
             onChange={(event) => setSourceFilter(event.target.value)}
-            className="h-10 rounded-md border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-10 rounded-lg border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {sourceOptions.map((source) => (
               <option key={source} value={source}>
@@ -176,84 +216,119 @@ export function LeadsTable({ leads: initialLeads }: { leads: LeadItem[] }) {
               </option>
             ))}
           </select>
+          <div className="inline-flex items-center justify-center rounded-lg border px-3 text-sm text-muted-foreground">
+            {filteredLeads.length} kết quả
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.45fr_1fr]">
-        <div className="overflow-hidden rounded-xl border bg-white">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Họ tên</TableHead>
-                  <TableHead>Liên hệ</TableHead>
-                  <TableHead>Nguồn</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead>Thời gian</TableHead>
-                  <TableHead className="w-[220px]">Thao tác</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredLeads.map((lead) => (
-                  <TableRow key={lead.id}>
-                    <TableCell className="font-medium">{lead.fullName}</TableCell>
-                    <TableCell>
-                      <p>{lead.email}</p>
-                      <p className="text-xs text-muted-foreground">{lead.phone}</p>
-                    </TableCell>
-                    <TableCell>{sourceLabel(lead.sourcePage)}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusBadgeVariant(lead.status)}>{statusLabel(lead.status)}</Badge>
-                    </TableCell>
-                    <TableCell>{format(new Date(lead.createdAt), "dd/MM/yyyy HH:mm", { locale: vi })}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" onClick={() => setSelectedLeadId(lead.id)}>
-                          <Eye className="size-3.5" />
-                          Chi tiết
-                        </Button>
-                        <select
-                          aria-label={`Cập nhật trạng thái cho ${lead.fullName}`}
-                          className="h-9 rounded-md border border-input bg-white px-2 text-xs"
-                          value={lead.status}
-                          disabled={busyId === lead.id}
-                          onChange={(event) => updateLeadStatus(lead.id, event.target.value)}
-                        >
-                          {STATUS_OPTIONS.filter((option) => option.value !== "ALL").map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          disabled={busyId === lead.id}
-                          onClick={() => deleteLead(lead.id)}
-                        >
-                          <Trash2 className="size-3.5" />
-                          Xóa
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!filteredLeads.length && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
-                      Không có dữ liệu phù hợp bộ lọc.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border bg-white p-4">
-          <h3 className="text-base font-semibold">Chi tiết đăng ký</h3>
-          {selectedLead ? (
-            <div className="mt-3 space-y-3 text-sm">
+          <p className="text-sm text-muted-foreground">Tổng đăng ký</p>
+          <p className="mt-1 text-2xl font-semibold">{leadStats.total}</p>
+        </div>
+        <div className="rounded-xl border bg-white p-4">
+          <p className="text-sm text-muted-foreground">Mới nhận</p>
+          <p className="mt-1 text-2xl font-semibold">{leadStats.newCount}</p>
+        </div>
+        <div className="rounded-xl border bg-white p-4">
+          <p className="text-sm text-muted-foreground">Đang xử lý</p>
+          <p className="mt-1 text-2xl font-semibold">{leadStats.inProgressCount}</p>
+        </div>
+        <div className="rounded-xl border bg-white p-4">
+          <p className="text-sm text-muted-foreground">Hoàn tất</p>
+          <p className="mt-1 text-2xl font-semibold">{leadStats.resolvedCount}</p>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border bg-white">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Họ tên</TableHead>
+                <TableHead>Liên hệ</TableHead>
+                <TableHead>Nguồn</TableHead>
+                <TableHead>Trạng thái</TableHead>
+                <TableHead>Thời gian</TableHead>
+                <TableHead className="w-[220px]">Thao tác</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredLeads.map((lead) => (
+                <TableRow key={lead.id}>
+                  <TableCell className="font-medium">{lead.fullName}</TableCell>
+                  <TableCell>
+                    <p>{lead.email}</p>
+                    <p className="text-xs text-muted-foreground">{lead.phone}</p>
+                  </TableCell>
+                  <TableCell>{sourceLabel(lead.sourcePage)}</TableCell>
+                  <TableCell>
+                    <Badge variant={statusBadgeVariant(lead.status)}>{statusLabel(lead.status)}</Badge>
+                  </TableCell>
+                  <TableCell>{format(new Date(lead.createdAt), "dd/MM/yyyy HH:mm", { locale: vi })}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setSelectedLeadId(lead.id)}>
+                        <Eye className="size-3.5" />
+                        Chi tiết
+                      </Button>
+                      <select
+                        aria-label={`Cập nhật trạng thái cho ${lead.fullName}`}
+                        className="h-9 rounded-md border border-input bg-white px-2 text-xs"
+                        value={lead.status}
+                        disabled={busyId === lead.id}
+                        onChange={(event) => updateLeadStatus(lead.id, event.target.value)}
+                      >
+                        {STATUS_OPTIONS.filter((option) => option.value !== "ALL").map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <Button size="sm" variant="destructive" disabled={busyId === lead.id} onClick={() => deleteLead(lead.id)}>
+                        <Trash2 className="size-3.5" />
+                        Xóa
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!filteredLeads.length && (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                    Không có dữ liệu phù hợp bộ lọc.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {selectedLead && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target !== event.currentTarget) return;
+            setSelectedLeadId(null);
+          }}
+        >
+          <div className="w-full max-w-2xl rounded-xl border bg-white p-5" role="dialog" aria-modal="true" aria-labelledby="lead-detail-title">
+            <div className="flex items-start justify-between gap-3 border-b pb-3">
+              <div>
+                <h3 id="lead-detail-title" className="text-lg font-semibold">
+                  Chi tiết đăng ký
+                </h3>
+                <p className="text-sm text-muted-foreground">Thông tin đầy đủ của người gửi biểu mẫu.</p>
+              </div>
+              <Button size="icon" variant="ghost" aria-label="Đóng chi tiết đăng ký" onClick={() => setSelectedLeadId(null)}>
+                <X className="size-4" />
+              </Button>
+            </div>
+
+            <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
               <p>
                 <span className="font-semibold">Họ tên:</span> {selectedLead.fullName}
               </p>
@@ -272,7 +347,7 @@ export function LeadsTable({ leads: initialLeads }: { leads: LeadItem[] }) {
               <p>
                 <span className="font-semibold">Năm sinh:</span> {selectedLead.birthYear || "Không có"}
               </p>
-              <p>
+              <p className="md:col-span-2">
                 <span className="font-semibold">Địa chỉ:</span> {selectedLead.address || "Không có"}
               </p>
               <p>
@@ -283,16 +358,15 @@ export function LeadsTable({ leads: initialLeads }: { leads: LeadItem[] }) {
                 <span className="font-semibold">Thời gian gửi:</span>{" "}
                 {format(new Date(selectedLead.createdAt), "dd/MM/yyyy HH:mm", { locale: vi })}
               </p>
-              <div className="rounded-md border bg-muted/40 p-3">
-                <p className="mb-1 font-semibold">Nội dung quan tâm</p>
-                <p className="whitespace-pre-wrap text-muted-foreground">{selectedLead.message || "Không có"}</p>
-              </div>
             </div>
-          ) : (
-            <p className="mt-3 text-sm text-muted-foreground">Chọn một bản ghi để xem chi tiết.</p>
-          )}
+
+            <div className="mt-4 rounded-md border bg-muted/40 p-3 text-sm">
+              <p className="mb-1 font-semibold">Nội dung quan tâm</p>
+              <p className="whitespace-pre-wrap text-muted-foreground">{selectedLead.message || "Không có"}</p>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
