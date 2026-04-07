@@ -38,7 +38,7 @@ export default async function NewsPage() {
             <Card key={post.id} className="overflow-hidden border-eco-100/80">
               <div className="relative h-48">
                 <Image
-                  src={mediaAssets.programs[index % mediaAssets.programs.length]}
+                  src={post.coverImage || mediaAssets.programs[index % mediaAssets.programs.length]}
                   alt={post.title}
                   fill
                   loading="lazy"

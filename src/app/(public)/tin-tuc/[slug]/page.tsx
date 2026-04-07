@@ -3,7 +3,7 @@ import Image from "next/image";
 import { ExternalLink, Megaphone } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { FACEBOOK_FANPAGE_URL } from "@/lib/constants";
-import { mediaAssets } from "@/lib/mock-content";
+import { PostContent } from "@/components/posts/post-content";
 
 export default async function NewsDetailPage({ params }: { params: { slug: string } }) {
   const post = await prisma.post.findUnique({
@@ -22,7 +22,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
           </div>
           <div className="relative min-h-64 overflow-hidden rounded-3xl">
             <Image
-              src={mediaAssets.article}
+              src={post.coverImage}
               alt={post.title}
               fill
               priority
@@ -35,7 +35,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
       <section className="section-padding">
         <div className="container">
           <div className="mx-auto max-w-4xl rounded-3xl border border-eco-100 bg-white p-6 shadow-sm md:p-10">
-            <div className="whitespace-pre-wrap text-base leading-8 text-foreground/90">{post.content}</div>
+            <PostContent content={post.content} />
           </div>
           <div className="mx-auto mt-6 max-w-4xl rounded-2xl border border-eco-100 bg-eco-50/70 p-4 md:p-5">
             <a

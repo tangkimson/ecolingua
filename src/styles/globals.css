@@ -65,6 +65,50 @@ body {
   .fade-up {
     animation: fadeUp 0.5s ease-out both;
   }
+
+  .post-content h1 {
+    @apply mb-4 mt-6 text-3xl font-bold leading-tight text-eco-900;
+  }
+
+  .post-content h2 {
+    @apply mb-3 mt-5 text-2xl font-semibold leading-tight text-eco-900;
+  }
+
+  .post-content h3 {
+    @apply mb-2 mt-4 text-xl font-semibold text-eco-900;
+  }
+
+  .post-content p {
+    @apply my-3;
+  }
+
+  .post-content ul {
+    @apply my-3 list-disc pl-6;
+  }
+
+  .post-content ol {
+    @apply my-3 list-decimal pl-6;
+  }
+
+  .post-content blockquote {
+    @apply my-4 border-l-4 border-eco-200 bg-eco-50/60 px-4 py-2 italic text-foreground/80;
+  }
+
+  .post-content a {
+    @apply font-medium text-eco-700 underline underline-offset-4;
+  }
+
+  .post-content img {
+    @apply my-4 h-auto rounded-xl shadow-sm;
+  }
+
+  .ProseMirror {
+    @apply post-content;
+  }
+
+  .ProseMirror:focus {
+    @apply outline-none;
+  }
 }
 
 @keyframes fadeUp {
