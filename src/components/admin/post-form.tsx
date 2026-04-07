@@ -269,10 +269,12 @@ export function PostForm({ mode, postId, defaultValues }: PostFormProps) {
         .focus()
         .setImage({
           src: result.url,
-          alt: imageFile.name,
+          alt: imageFile.name
+        })
+        .updateAttributes("image", {
           width: imageWidth,
           align: imageAlign
-        } as any)
+        })
         .run();
 
       setImageFile(null);
