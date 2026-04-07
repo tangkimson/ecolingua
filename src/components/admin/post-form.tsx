@@ -39,7 +39,13 @@ import {
   RotateCw,
   CheckCircle2,
   ExternalLink,
-  PencilLine
+  PencilLine,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  MoreHorizontal,
+  X,
+  Trash2
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -247,6 +253,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
   const [selectedImageAlign, setSelectedImageAlign] = useState<"left" | "center" | "right">("center");
   const [selectedImageAlt, setSelectedImageAlt] = useState("");
   const [imageToolbarPosition, setImageToolbarPosition] = useState<{ top: number; left: number } | null>(null);
+  const [showImageAdvanced, setShowImageAdvanced] = useState(false);
   const [replacingImage, setReplacingImage] = useState(false);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImagePreviewUrl, setCoverImagePreviewUrl] = useState("");
@@ -269,6 +276,8 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const editorContainerRef = useRef<HTMLDivElement | null>(null);
   const replaceImageInputRef = useRef<HTMLInputElement | null>(null);
+  const imageQuickToolbarRef = useRef<HTMLDivElement | null>(null);
+  const imageAdvancedPanelRef = useRef<HTMLDivElement | null>(null);
 
   const draftKey = useMemo(() => `admin-post-draft:${mode}:${postId ?? "new"}`, [mode, postId]);
   const currentSnapshot = useMemo(
@@ -329,6 +338,19 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
   });
   const linkItems = editor ? extractEditorLinks(editor) : [];
 
+  function syncImageToolbarPosition(currentEditor: NonNullable<typeof editor>) {
+    if (!editorContainerRef.current || !currentEditor.isActive("image")) return;
+    const { from } = currentEditor.state.selection;
+    const coords = currentEditor.view.coordsAtPos(from);
+    const containerRect = editorContainerRef.current.getBoundingClientRect();
+    const rawLeft = coords.left - containerRect.left;
+    const left = Math.max(12, Math.min(rawLeft, containerRect.width - 260));
+    const preferredTop = coords.top - containerRect.top - 52;
+    const fallbackTop = coords.bottom - containerRect.top + 8;
+    const top = preferredTop > 8 ? preferredTop : fallbackTop;
+    setImageToolbarPosition({ top, left });
+  }
+
   useEffect(() => {
     if (slugTouched) return;
     setSlug(slugify(title));
@@ -361,6 +383,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
         setSelectedImageAlign("center");
         setSelectedImageAlt("");
         setImageToolbarPosition(null);
+        setShowImageAdvanced(false);
         return;
       }
 
@@ -370,15 +393,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
       const align = String(attrs.align || "center");
       setSelectedImageAlign(align === "left" || align === "right" ? align : "center");
       setSelectedImageAlt(String(attrs.alt || ""));
-
-      if (!editorContainerRef.current) return;
-      const { from } = editor.state.selection;
-      const coords = editor.view.coordsAtPos(from);
-      const containerRect = editorContainerRef.current.getBoundingClientRect();
-      const rawLeft = coords.left - containerRect.left;
-      const left = Math.max(12, Math.min(rawLeft, containerRect.width - 280));
-      const top = coords.bottom - containerRect.top + 10;
-      setImageToolbarPosition({ top, left });
+      syncImageToolbarPosition(editor);
     };
 
     const updateSelectedLinkState = () => {
@@ -417,14 +432,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
   useEffect(() => {
     if (!editor || selectedImageWidth === null) return;
     const syncPosition = () => {
-      if (!editorContainerRef.current || !editor.isActive("image")) return;
-      const { from } = editor.state.selection;
-      const coords = editor.view.coordsAtPos(from);
-      const containerRect = editorContainerRef.current.getBoundingClientRect();
-      const rawLeft = coords.left - containerRect.left;
-      const left = Math.max(12, Math.min(rawLeft, containerRect.width - 280));
-      const top = coords.bottom - containerRect.top + 10;
-      setImageToolbarPosition({ top, left });
+      syncImageToolbarPosition(editor);
     };
 
     window.addEventListener("resize", syncPosition);
@@ -434,6 +442,28 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
       window.removeEventListener("scroll", syncPosition, true);
     };
   }, [editor, selectedImageWidth]);
+
+  useEffect(() => {
+    if (!showImageAdvanced) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (imageQuickToolbarRef.current?.contains(target)) return;
+      if (imageAdvancedPanelRef.current?.contains(target)) return;
+      setShowImageAdvanced(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowImageAdvanced(false);
+      }
+    };
+    window.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showImageAdvanced]);
 
   useEffect(() => {
     const savedDraft = window.localStorage.getItem(draftKey);
@@ -1131,105 +1161,164 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                       </div>
                     )}
                     {selectedImageWidth !== null && imageToolbarPosition && (
-                      <div
-                        className="absolute z-20 w-[min(17rem,calc(100%-1rem))] rounded-lg border bg-white p-3 shadow-xl"
-                        style={{ top: imageToolbarPosition.top, left: imageToolbarPosition.left }}
-                      >
-                        <p className="mb-2 text-xs font-medium text-muted-foreground">Tùy chỉnh ảnh đang chọn</p>
-                        <div className="mb-2 grid grid-cols-3 gap-2">
-                          <Button
+                      <>
+                        <div
+                          ref={imageQuickToolbarRef}
+                          className="absolute z-20 flex items-center gap-1 rounded-full border border-eco-200 bg-white/95 px-2 py-1 shadow-lg backdrop-blur"
+                          style={{ top: imageToolbarPosition.top, left: imageToolbarPosition.left }}
+                        >
+                          <button
                             type="button"
-                            size="sm"
-                            variant={selectedImageAlign === "left" ? "secondary" : "outline"}
+                            title="Căn trái"
                             onClick={() => updateSelectedImageAttributes(selectedImageWidth, selectedImageRotate, "left")}
+                            className={cn(
+                              "inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-eco-100 hover:text-eco-900",
+                              selectedImageAlign === "left" && "bg-eco-100 text-eco-900"
+                            )}
                           >
-                            Trái
-                          </Button>
-                          <Button
+                            <AlignLeft className="size-4" />
+                          </button>
+                          <button
                             type="button"
-                            size="sm"
-                            variant={selectedImageAlign === "center" ? "secondary" : "outline"}
+                            title="Căn giữa"
                             onClick={() => updateSelectedImageAttributes(selectedImageWidth, selectedImageRotate, "center")}
+                            className={cn(
+                              "inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-eco-100 hover:text-eco-900",
+                              selectedImageAlign === "center" && "bg-eco-100 text-eco-900"
+                            )}
                           >
-                            Giữa
-                          </Button>
-                          <Button
+                            <AlignCenter className="size-4" />
+                          </button>
+                          <button
                             type="button"
-                            size="sm"
-                            variant={selectedImageAlign === "right" ? "secondary" : "outline"}
+                            title="Căn phải"
                             onClick={() => updateSelectedImageAttributes(selectedImageWidth, selectedImageRotate, "right")}
+                            className={cn(
+                              "inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-eco-100 hover:text-eco-900",
+                              selectedImageAlign === "right" && "bg-eco-100 text-eco-900"
+                            )}
                           >
-                            Phải
-                          </Button>
-                        </div>
-                        <div className="mb-2 flex flex-wrap gap-2">
-                          <Button type="button" size="sm" variant="outline" onClick={() => updateSelectedImageAttributes(selectedImageWidth - 5, selectedImageRotate)}>
-                            <ZoomOut className="size-4" />
-                          </Button>
-                          <Button type="button" size="sm" variant="outline" onClick={() => updateSelectedImageAttributes(selectedImageWidth + 5, selectedImageRotate)}>
-                            <ZoomIn className="size-4" />
-                          </Button>
-                          <Button type="button" size="sm" variant="outline" onClick={() => updateSelectedImageAttributes(selectedImageWidth, selectedImageRotate - 15)}>
-                            <RotateCcw className="size-4" />
-                          </Button>
-                          <Button type="button" size="sm" variant="outline" onClick={() => updateSelectedImageAttributes(selectedImageWidth, selectedImageRotate + 15)}>
-                            <RotateCw className="size-4" />
-                          </Button>
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="inlineImageWidth" className="text-xs">
-                            Kích thước ({selectedImageWidth}%)
-                          </Label>
-                          <Input
-                            id="inlineImageWidth"
-                            type="range"
-                            min={20}
-                            max={100}
-                            value={selectedImageWidth}
-                            onChange={(event) => updateSelectedImageAttributes(Number(event.target.value), selectedImageRotate)}
-                          />
-                        </div>
-                        <div className="mt-2 space-y-1">
-                          <Label htmlFor="inlineImageAlt" className="text-xs">
-                            Alt text
-                          </Label>
-                          <Input
-                            id="inlineImageAlt"
-                            value={selectedImageAlt}
-                            onChange={(event) => setSelectedImageAlt(event.target.value)}
-                            placeholder="Mô tả ảnh"
-                          />
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <Button type="button" size="sm" variant="outline" onClick={saveSelectedImageAlt}>
-                            Lưu alt
-                          </Button>
-                          <Button
+                            <AlignRight className="size-4" />
+                          </button>
+                          <div className="mx-1 h-5 w-px bg-border" />
+                          <button
                             type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={replacingImage}
-                            onClick={() => replaceImageInputRef.current?.click()}
+                            title="Thu nhỏ ảnh"
+                            onClick={() => updateSelectedImageAttributes(selectedImageWidth - 5, selectedImageRotate)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-eco-100 hover:text-eco-900"
                           >
-                            {replacingImage ? "Đang thay..." : "Thay ảnh"}
-                          </Button>
-                          <Button type="button" size="sm" variant="destructive" onClick={removeSelectedImageNode}>
-                            Xóa ảnh
-                          </Button>
+                            <ZoomOut className="size-4" />
+                          </button>
+                          <span className="min-w-10 text-center text-xs font-medium text-foreground">{selectedImageWidth}%</span>
+                          <button
+                            type="button"
+                            title="Phóng to ảnh"
+                            onClick={() => updateSelectedImageAttributes(selectedImageWidth + 5, selectedImageRotate)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-eco-100 hover:text-eco-900"
+                          >
+                            <ZoomIn className="size-4" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Mở tùy chỉnh nâng cao"
+                            onClick={() => setShowImageAdvanced((prev) => !prev)}
+                            className={cn(
+                              "inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-eco-100 hover:text-eco-900",
+                              showImageAdvanced && "bg-eco-100 text-eco-900"
+                            )}
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </button>
                         </div>
-                        <input
-                          ref={replaceImageInputRef}
-                          type="file"
-                          className="hidden"
-                          accept="image/png,image/jpeg,image/webp,image/gif"
-                          onChange={(event) => {
-                            const nextFile = event.target.files?.[0];
-                            if (!nextFile) return;
-                            void replaceSelectedImage(nextFile);
-                            event.currentTarget.value = "";
-                          }}
-                        />
-                      </div>
+
+                        {showImageAdvanced && (
+                          <div
+                            ref={imageAdvancedPanelRef}
+                            className="fixed inset-x-3 bottom-3 z-30 rounded-xl border bg-white p-4 shadow-2xl md:absolute md:inset-auto md:w-[min(22rem,calc(100%-1rem))]"
+                            style={
+                              imageToolbarPosition
+                                ? {
+                                    top: imageToolbarPosition.top + 48,
+                                    left: imageToolbarPosition.left
+                                  }
+                                : undefined
+                            }
+                          >
+                            <div className="mb-3 flex items-center justify-between">
+                              <p className="text-sm font-semibold">Tùy chỉnh ảnh nâng cao</p>
+                              <Button type="button" size="icon" variant="ghost" onClick={() => setShowImageAdvanced(false)}>
+                                <X className="size-4" />
+                              </Button>
+                            </div>
+                            <div className="space-y-3">
+                              <div className="space-y-1">
+                                <Label htmlFor="inlineImageWidth" className="text-xs">
+                                  Kích thước ({selectedImageWidth}%)
+                                </Label>
+                                <Input
+                                  id="inlineImageWidth"
+                                  type="range"
+                                  min={20}
+                                  max={100}
+                                  value={selectedImageWidth}
+                                  onChange={(event) => updateSelectedImageAttributes(Number(event.target.value), selectedImageRotate)}
+                                />
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <Button type="button" size="sm" variant="outline" onClick={() => updateSelectedImageAttributes(selectedImageWidth, selectedImageRotate - 15)}>
+                                  <RotateCcw className="size-4" />
+                                  Xoay trái
+                                </Button>
+                                <Button type="button" size="sm" variant="outline" onClick={() => updateSelectedImageAttributes(selectedImageWidth, selectedImageRotate + 15)}>
+                                  <RotateCw className="size-4" />
+                                  Xoay phải
+                                </Button>
+                              </div>
+                              <div className="space-y-1">
+                                <Label htmlFor="inlineImageAlt" className="text-xs">
+                                  Alt text
+                                </Label>
+                                <Input
+                                  id="inlineImageAlt"
+                                  value={selectedImageAlt}
+                                  onChange={(event) => setSelectedImageAlt(event.target.value)}
+                                  placeholder="Mô tả ảnh giúp SEO và trợ năng"
+                                />
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <Button type="button" size="sm" variant="outline" onClick={saveSelectedImageAlt}>
+                                  Lưu alt
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={replacingImage}
+                                  onClick={() => replaceImageInputRef.current?.click()}
+                                >
+                                  {replacingImage ? "Đang thay..." : "Thay ảnh"}
+                                </Button>
+                                <Button type="button" size="sm" variant="destructive" onClick={removeSelectedImageNode}>
+                                  <Trash2 className="size-4" />
+                                  Xóa ảnh
+                                </Button>
+                              </div>
+                            </div>
+                            <input
+                              ref={replaceImageInputRef}
+                              type="file"
+                              className="hidden"
+                              accept="image/png,image/jpeg,image/webp,image/gif"
+                              onChange={(event) => {
+                                const nextFile = event.target.files?.[0];
+                                if (!nextFile) return;
+                                void replaceSelectedImage(nextFile);
+                                event.currentTarget.value = "";
+                              }}
+                            />
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                   <div className="rounded-lg border p-3">
@@ -1349,7 +1438,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
 
                     {selectedImageWidth !== null && (
                       <p className="mt-3 text-xs text-muted-foreground">
-                        Nhấn vào ảnh trong editor để mở bảng điều khiển nhanh (resize, căn lề, thay ảnh, alt text, xóa ảnh).
+                        Khi chọn ảnh sẽ hiện thanh thao tác nhanh; bấm nút ba chấm để mở tùy chỉnh nâng cao.
                       </p>
                     )}
                   </div>
