@@ -53,6 +53,7 @@ import { PostContent } from "@/components/posts/post-content";
 import { AdaptiveImageFrame } from "@/components/ui/adaptive-image-frame";
 import { normalizePostContent } from "@/lib/post-content";
 import { formatCoverImageTransform, parseCoverImageTransform } from "@/lib/image-presentation";
+import { findDisallowedImageSources, isAllowedAdminImageSource } from "@/lib/post-images";
 import { cn } from "@/lib/utils";
 
 type PostFormValue = {
@@ -76,6 +77,9 @@ type PostFormProps = {
 };
 
 type DraftPayload = PostFormValue & {
+  coverZoom: number;
+  coverOffsetX: number;
+  coverOffsetY: number;
   savedAt: string;
 };
 
@@ -103,10 +107,47 @@ function slugify(input: string) {
 function getApiErrorMessage(payload: unknown) {
   if (!payload || typeof payload !== "object") return null;
   const data = payload as { error?: unknown };
+  if (typeof data.error === "string" && data.error.trim()) return data.error;
   if (!data.error || typeof data.error !== "object") return null;
   const flattened = data.error as { fieldErrors?: Record<string, string[] | undefined> };
-  const firstFieldError = Object.values(flattened.fieldErrors ?? {}).find((messages) => messages?.length)?.[0];
-  return firstFieldError ?? null;
+  return Object.values(flattened.fieldErrors ?? {}).find((messages) => messages?.length)?.[0] ?? null;
+}
+
+async function parseJsonSafely(response: Response) {
+  try {
+    return (await response.json()) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function redirectToAdminLogin() {
+  if (typeof window === "undefined") return;
+  const callback = `${window.location.pathname}${window.location.search}`;
+  window.location.assign(`/admin/login?callbackUrl=${encodeURIComponent(callback)}`);
+}
+
+function normalizeDraftPayload(raw: unknown): DraftPayload | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  const value = raw as Partial<DraftPayload>;
+  const coverFromStored = parseCoverImageTransform(typeof value.coverImage === "string" ? value.coverImage : "");
+  const zoom = typeof value.coverZoom === "number" ? value.coverZoom : coverFromStored.zoom;
+  const offsetX = typeof value.coverOffsetX === "number" ? value.coverOffsetX : coverFromStored.offsetX;
+  const offsetY = typeof value.coverOffsetY === "number" ? value.coverOffsetY : coverFromStored.offsetY;
+
+  return {
+    title: typeof value.title === "string" ? value.title : "",
+    slug: typeof value.slug === "string" ? value.slug : "",
+    excerpt: typeof value.excerpt === "string" ? value.excerpt : "",
+    content: typeof value.content === "string" ? value.content : "",
+    coverImage: coverFromStored.src,
+    published: typeof value.published === "boolean" ? value.published : false,
+    coverZoom: Number.isFinite(zoom) ? zoom : 1,
+    coverOffsetX: Number.isFinite(offsetX) ? offsetX : 0,
+    coverOffsetY: Number.isFinite(offsetY) ? offsetY : 0,
+    savedAt: typeof value.savedAt === "string" ? value.savedAt : new Date().toISOString()
+  };
 }
 
 function normalizeLinkUrl(raw: string) {
@@ -412,7 +453,11 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
     if (!savedDraft) return;
 
     try {
-      const draft = JSON.parse(savedDraft) as DraftPayload;
+      const draft = normalizeDraftPayload(JSON.parse(savedDraft));
+      if (!draft) {
+        window.localStorage.removeItem(draftKey);
+        return;
+      }
       setStoredDraft(draft);
       setLastDraftSavedAt(draft.savedAt);
     } catch {
@@ -431,6 +476,9 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
         content,
         coverImage,
         published,
+        coverZoom,
+        coverOffsetX,
+        coverOffsetY,
         savedAt: new Date().toISOString()
       };
       window.localStorage.setItem(draftKey, JSON.stringify(draft));
@@ -438,7 +486,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
     }, 1000);
 
     return () => window.clearTimeout(draftTimeout);
-  }, [title, slug, excerpt, content, coverImage, published, draftKey, storedDraft]);
+  }, [title, slug, excerpt, content, coverImage, coverZoom, coverOffsetX, coverOffsetY, published, draftKey, storedDraft]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -471,11 +519,15 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
     if (payload.excerpt.trim().length < 20) nextErrors.excerpt = "Mô tả ngắn cần ít nhất 20 ký tự.";
     if (payload.excerpt.trim().length > 300) nextErrors.excerpt = "Mô tả ngắn tối đa 300 ký tự.";
     if (payload.content.trim().length < 50) nextErrors.content = "Nội dung cần chi tiết hơn (ít nhất 50 ký tự).";
-    try {
-      new URL(payload.coverImage.trim());
-    } catch {
-      nextErrors.coverImage = "Ảnh bìa cần là URL hợp lệ.";
+    if (!isAllowedAdminImageSource(payload.coverImage.trim())) {
+      nextErrors.coverImage = "Ảnh bìa phải được tải lên từ thiết bị.";
     }
+
+    const invalidImages = findDisallowedImageSources(payload.content);
+    if (invalidImages.length > 0) {
+      nextErrors.content = "Nội dung chứa ảnh URL/link ngoài. Chỉ cho phép ảnh tải lên từ thiết bị.";
+    }
+
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   }
@@ -486,6 +538,9 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
     setSlug(storedDraft.slug);
     setExcerpt(storedDraft.excerpt);
     setCoverImage(storedDraft.coverImage);
+    setCoverZoom(storedDraft.coverZoom);
+    setCoverOffsetX(storedDraft.coverOffsetX);
+    setCoverOffsetY(storedDraft.coverOffsetY);
     setPublished(storedDraft.published);
     setContent(storedDraft.content);
     editor?.commands.setContent(storedDraft.content, { emitUpdate: false });
@@ -508,6 +563,9 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
       content,
       coverImage,
       published,
+      coverZoom,
+      coverOffsetX,
+      coverOffsetY,
       savedAt: new Date().toISOString()
     };
     window.localStorage.setItem(draftKey, JSON.stringify(draft));
@@ -540,7 +598,12 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
         body: JSON.stringify(payload)
       });
 
-      const result = (await res.json()) as { id?: string } | { error?: unknown };
+      const result = (await parseJsonSafely(res)) as { id?: string; error?: unknown } | null;
+      if (res.status === 401) {
+        toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        redirectToAdminLogin();
+        return;
+      }
       if (!res.ok) {
         const apiMessage = getApiErrorMessage(result);
         throw new Error(apiMessage ?? "Không thể lưu bài viết.");
@@ -571,7 +634,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
             : "Đã lưu bản nháp."
       );
 
-      if (mode === "create" && "id" in result && result.id) {
+      if (mode === "create" && result && "id" in result && result.id) {
         router.replace(`/admin/posts/${result.id}/edit`);
         return;
       }

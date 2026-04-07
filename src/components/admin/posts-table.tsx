@@ -28,6 +28,29 @@ type PostItem = {
 type StatusFilter = "all" | "published" | "draft";
 type SortOption = "updated-desc" | "updated-asc" | "created-desc" | "title-asc" | "title-desc";
 
+function getApiErrorMessage(payload: unknown) {
+  if (!payload || typeof payload !== "object") return null;
+  const data = payload as { error?: unknown };
+  if (typeof data.error === "string" && data.error.trim()) return data.error;
+  if (!data.error || typeof data.error !== "object") return null;
+  const flattened = data.error as { fieldErrors?: Record<string, string[] | undefined> };
+  return Object.values(flattened.fieldErrors ?? {}).find((messages) => messages?.length)?.[0] ?? null;
+}
+
+async function parseJsonSafely(response: Response) {
+  try {
+    return (await response.json()) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function redirectToAdminLogin() {
+  if (typeof window === "undefined") return;
+  const callback = `${window.location.pathname}${window.location.search}`;
+  window.location.assign(`/admin/login?callbackUrl=${encodeURIComponent(callback)}`);
+}
+
 function toDateLabel(value: Date | string | null) {
   if (!value) return "—";
   return new Date(value).toLocaleString("vi-VN");
@@ -85,11 +108,17 @@ export function PostsTable({ posts }: { posts: PostItem[] }) {
     try {
       setBusyPostId(id);
       const res = await fetch(`/api/posts/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Xóa bài viết thất bại");
+      const payload = await parseJsonSafely(res);
+      if (res.status === 401) {
+        toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        redirectToAdminLogin();
+        return;
+      }
+      if (!res.ok) throw new Error(getApiErrorMessage(payload) ?? "Xóa bài viết thất bại.");
       toast.success("Đã xóa bài viết");
       router.refresh();
-    } catch {
-      toast.error("Xóa bài viết thất bại");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Xóa bài viết thất bại.");
     } finally {
       setBusyPostId(null);
       setConfirmDeletePost(null);
@@ -104,11 +133,17 @@ export function PostsTable({ posts }: { posts: PostItem[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ published: !post.published })
       });
-      if (!res.ok) throw new Error("Cập nhật trạng thái thất bại");
+      const payload = await parseJsonSafely(res);
+      if (res.status === 401) {
+        toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        redirectToAdminLogin();
+        return;
+      }
+      if (!res.ok) throw new Error(getApiErrorMessage(payload) ?? "Cập nhật trạng thái thất bại.");
       toast.success(post.published ? "Đã chuyển về bản nháp." : "Bài viết đã được xuất bản.");
       router.refresh();
-    } catch {
-      toast.error("Không thể cập nhật trạng thái bài viết.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không thể cập nhật trạng thái bài viết.");
     } finally {
       setBusyPostId(null);
     }

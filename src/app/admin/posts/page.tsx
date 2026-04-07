@@ -1,10 +1,17 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin";
 import { Button } from "@/components/ui/button";
 import { PostsTable } from "@/components/admin/posts-table";
 
 export default async function AdminPostsPage() {
+  const session = await requireAdmin();
+  if (!session) {
+    redirect(`/admin/login?callbackUrl=${encodeURIComponent("/admin/posts")}`);
+  }
+
   const posts = await prisma.post.findMany({
     orderBy: { updatedAt: "desc" }
   });

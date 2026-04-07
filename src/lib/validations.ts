@@ -40,7 +40,7 @@ export const postSchema = z.object({
     .regex(/^[a-z0-9-]+$/, "Slug chỉ gồm chữ thường, số và dấu gạch ngang"),
   excerpt: z.string().min(20).max(300),
   content: z.string().min(50),
-  coverImage: z.string().url(),
+  coverImage: z.string().trim().min(1, "Ảnh bìa là bắt buộc").max(8_000_000),
   published: z.boolean()
 });
 

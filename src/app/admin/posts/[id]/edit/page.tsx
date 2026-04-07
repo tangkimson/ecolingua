@@ -1,9 +1,15 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { PostForm } from "@/components/admin/post-form";
+import { requireAdmin } from "@/lib/admin";
 
 export default async function EditPostPage({ params }: { params: { id: string } }) {
+  const session = await requireAdmin();
+  if (!session) {
+    redirect(`/admin/login?callbackUrl=${encodeURIComponent(`/admin/posts/${params.id}/edit`)}`);
+  }
+
   const post = await prisma.post.findUnique({ where: { id: params.id } });
   if (!post) return notFound();
 

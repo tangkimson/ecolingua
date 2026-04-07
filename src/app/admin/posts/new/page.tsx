@@ -1,6 +1,14 @@
-import { PostForm } from "@/components/admin/post-form";
+import { redirect } from "next/navigation";
 
-export default function NewPostPage() {
+import { PostForm } from "@/components/admin/post-form";
+import { requireAdmin } from "@/lib/admin";
+
+export default async function NewPostPage() {
+  const session = await requireAdmin();
+  if (!session) {
+    redirect(`/admin/login?callbackUrl=${encodeURIComponent("/admin/posts/new")}`);
+  }
+
   return (
     <div className="space-y-4">
       <h1 className="text-3xl font-bold">Tạo bài viết</h1>
