@@ -4,6 +4,7 @@ import { compare } from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
 import { adminLoginSchema } from "@/lib/validations";
+import { decryptTotpSecret, verifyTotpCode } from "@/lib/totp";
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -28,6 +29,17 @@ export const authOptions: NextAuthOptions = {
 
         const valid = await compare(parsed.data.password, user.passwordHash);
         if (!valid) return null;
+
+        if (user.twoFactorEnabled) {
+          if (!user.twoFactorSecret || !parsed.data.totpCode) return null;
+
+          try {
+            const secret = decryptTotpSecret(user.twoFactorSecret);
+            if (!secret || !verifyTotpCode(secret, parsed.data.totpCode)) return null;
+          } catch {
+            return null;
+          }
+        }
 
         return {
           id: user.id,

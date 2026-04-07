@@ -20,12 +20,14 @@ export default function AdminLoginPage() {
     const form = new FormData(e.currentTarget);
     const email = String(form.get("email") || "");
     const password = String(form.get("password") || "");
+    const totpCode = String(form.get("totpCode") || "").replace(/\s+/g, "");
 
     try {
       setLoading(true);
       const result = await signIn("credentials", {
         email,
         password,
+        ...(totpCode ? { totpCode } : {}),
         callbackUrl,
         redirect: false
       });
@@ -55,6 +57,18 @@ export default function AdminLoginPage() {
             <div className="space-y-2">
               <Label htmlFor="password">Mật khẩu</Label>
               <Input id="password" name="password" type="password" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="totpCode">Mã xác thực 2FA (nếu đã bật)</Label>
+              <Input
+                id="totpCode"
+                name="totpCode"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="123456"
+                pattern="\d{6}"
+                maxLength={6}
+              />
             </div>
             <Button className="w-full" type="submit" disabled={loading}>
               {loading ? "Đang đăng nhập..." : "Đăng nhập"}

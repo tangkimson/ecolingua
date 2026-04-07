@@ -28,9 +28,23 @@ export const postSchema = z.object({
 
 export const adminLoginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6).max(128)
+  password: z.string().min(6).max(128),
+  totpCode: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Mã xác thực phải gồm 6 chữ số")
+    .optional()
 });
 
 export const adminSettingSchema = z.object({
   notificationEmail: z.string().email()
+});
+
+export const enableTwoFactorSchema = z.object({
+  code: z.string().trim().regex(/^\d{6}$/)
+});
+
+export const disableTwoFactorSchema = z.object({
+  password: z.string().min(6).max(128),
+  code: z.string().trim().regex(/^\d{6}$/)
 });
