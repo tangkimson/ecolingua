@@ -7,11 +7,18 @@ import { faqsJoin, mediaAssets } from "@/lib/mock-content";
 import { prisma } from "@/lib/prisma";
 
 export default async function JoinPage() {
-  const dbFaqs = await prisma.faq.findMany({
-    where: { location: "JOIN", published: true },
-    orderBy: [{ order: "asc" }, { updatedAt: "desc" }]
-  });
+  const [dbFaqs, positions] = await Promise.all([
+    prisma.faq.findMany({
+      where: { location: "JOIN", published: true },
+      orderBy: [{ order: "asc" }, { updatedAt: "desc" }]
+    }),
+    prisma.volunteerPosition.findMany({
+      where: { published: true },
+      orderBy: [{ order: "asc" }, { updatedAt: "desc" }]
+    })
+  ]);
   const items = dbFaqs.length ? dbFaqs.map((item) => ({ q: item.question, a: item.answer })) : faqsJoin;
+  const positionsText = positions.map((item) => item.title).join(" - ");
 
   return (
     <div className="bg-eco-50/70">
@@ -29,7 +36,9 @@ export default async function JoinPage() {
             </ol>
             <div className="mt-6 rounded-2xl border border-eco-100 bg-white p-4 text-sm text-muted-foreground">
               <p className="font-semibold text-eco-800">Vị trí đang ưu tiên tuyển</p>
-              <p className="mt-2">Content & Social Media - Design - Translation</p>
+              <p className="mt-2">
+                {positionsText || "Đã khóa form, vui lòng theo dõi Fanpage Facebook để biết thêm thông tin chi tiết các đợt tuyển form sắp tới."}
+              </p>
             </div>
             <div className="mt-4 rounded-2xl border border-[#1877F2]/20 bg-[#1877F2]/5 p-4 text-sm text-eco-900/85">
               <p className="font-semibold">Thông báo tuyển thành viên được đăng trước trên Fanpage</p>
@@ -55,7 +64,14 @@ export default async function JoinPage() {
               />
             </div>
           </div>
-          <VolunteerForm sourcePage="tham-gia" />
+          <VolunteerForm
+            sourcePage="tham-gia"
+            positions={positions.map((item) => ({
+              id: item.id,
+              title: item.title,
+              description: item.description
+            }))}
+          />
         </div>
       </section>
 

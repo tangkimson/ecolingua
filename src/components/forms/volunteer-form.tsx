@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 type VolunteerFormProps = {
   sourcePage: string;
+  positions: { id: string; title: string; description: string | null }[];
 };
 
 declare global {
@@ -26,7 +27,7 @@ type LeadValidationErrors = {
   fieldErrors?: Record<string, string[]>;
 };
 
-export function VolunteerForm({ sourcePage }: VolunteerFormProps) {
+export function VolunteerForm({ sourcePage, positions }: VolunteerFormProps) {
   const captchaSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
   const captchaEnabled = Boolean(captchaSiteKey);
 
@@ -74,12 +75,17 @@ export function VolunteerForm({ sourcePage }: VolunteerFormProps) {
       setErrorMessage(null);
       setFieldErrors({});
 
+      const volunteerPositionId = String(formData.get("volunteerPositionId") || "").trim();
+      const selectedPosition = positions.find((item) => item.id === volunteerPositionId);
+
       const payload = {
         fullName: String(formData.get("fullName") || ""),
         phone: String(formData.get("phone") || ""),
         email: String(formData.get("email") || ""),
         address: String(formData.get("address") || ""),
         birthYear: String(formData.get("birthYear") || ""),
+        volunteerPositionId,
+        volunteerPositionTitle: selectedPosition?.title || "",
         message: String(formData.get("message") || ""),
         website: String(formData.get("website") || ""),
         captchaToken,
@@ -127,6 +133,17 @@ export function VolunteerForm({ sourcePage }: VolunteerFormProps) {
     }
   }
 
+  if (!positions.length) {
+    return (
+      <div className="surface-card rounded-2xl border-eco-100 p-6">
+        <h2 className="text-xl font-bold text-eco-900">Đăng ký cộng tác</h2>
+        <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Đã khóa form, vui lòng theo dõi Fanpage Facebook để biết thêm thông tin chi tiết các đợt tuyển form sắp tới.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <form id="volunteer-form" action={async (formData) => handleSubmit(formData)} className="surface-card space-y-4 rounded-2xl border-eco-100 p-6">
       {captchaEnabled ? (
@@ -169,7 +186,24 @@ export function VolunteerForm({ sourcePage }: VolunteerFormProps) {
         <Input name="address" id="address" className="h-11 rounded-xl border-eco-200 bg-white" />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="message">Bạn muốn tham gia hoạt động nào?</Label>
+        <Label htmlFor="volunteerPositionId">Vị trí đăng ký *</Label>
+        <select
+          id="volunteerPositionId"
+          name="volunteerPositionId"
+          required
+          className="h-11 w-full rounded-xl border border-eco-200 bg-white px-3 text-sm"
+        >
+          <option value="">Chọn vị trí bạn muốn ứng tuyển</option>
+          {positions.map((position) => (
+            <option key={position.id} value={position.id}>
+              {position.title}
+            </option>
+          ))}
+        </select>
+        {getFieldError("volunteerPositionId") ? <p className="text-xs text-red-600">{getFieldError("volunteerPositionId")}</p> : null}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="message">Bạn muốn chia sẻ thêm gì?</Label>
         <Textarea name="message" id="message" className="rounded-xl border-eco-200 bg-white" />
         {getFieldError("message") ? <p className="text-xs text-red-600">{getFieldError("message")}</p> : null}
       </div>

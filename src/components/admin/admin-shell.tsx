@@ -28,6 +28,9 @@ export function AdminShell({ children }: AdminShellProps) {
             <Link href="/admin/leads" className="block rounded px-3 py-2 hover:bg-muted">
               Danh sách đăng ký
             </Link>
+            <Link href="/admin/volunteer-positions" className="block rounded px-3 py-2 hover:bg-muted">
+              Vị trí cộng tác viên
+            </Link>
             <Link href="/admin/settings" className="block rounded px-3 py-2 hover:bg-muted">
               Cài đặt
             </Link>

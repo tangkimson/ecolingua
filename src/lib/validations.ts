@@ -10,6 +10,8 @@ export const leadSchema = z.object({
     .max(20)
     .regex(/^[\d+\-\s().]+$/, "Số điện thoại chỉ được chứa số và ký tự liên hệ hợp lệ"),
   sourcePage: z.string().trim().min(1).max(100),
+  volunteerPositionId: z.string().trim().max(100).optional().default(""),
+  volunteerPositionTitle: z.string().trim().max(180).optional().default(""),
   message: z.string().trim().max(1200).optional().default(""),
   birthYear: z
     .string()
@@ -20,6 +22,13 @@ export const leadSchema = z.object({
   address: z.string().trim().max(200).optional().default(""),
   captchaToken: z.string().trim().optional().default(""),
   website: z.string().trim().max(200).optional().default("")
+});
+
+export const volunteerPositionSchema = z.object({
+  title: z.string().trim().min(2, "Tên vị trí cần ít nhất 2 ký tự").max(180),
+  description: z.string().trim().max(500).optional().default(""),
+  published: z.boolean(),
+  order: z.number().int().min(0).max(999)
 });
 
 export const postSchema = z.object({

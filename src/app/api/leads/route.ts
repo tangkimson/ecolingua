@@ -29,6 +29,7 @@ export async function GET(req: Request) {
             { email: { contains: q, mode: "insensitive" as const } },
             { phone: { contains: q, mode: "insensitive" as const } },
             { address: { contains: q, mode: "insensitive" as const } },
+            { volunteerPositionTitle: { contains: q, mode: "insensitive" as const } },
             { message: { contains: q, mode: "insensitive" as const } }
           ]
         }
@@ -67,6 +68,7 @@ export async function POST(req: Request) {
 
     const data = parsed.data;
     const sourcePage = sanitizeText(data.sourcePage.toLowerCase());
+    const normalizedPositionId = sanitizeText(data.volunteerPositionId || "");
 
     // Honeypot: bots usually fill hidden fields. Return success-like response to avoid probing.
     if (data.website) {
@@ -103,12 +105,32 @@ export async function POST(req: Request) {
       );
     }
 
+    let selectedPosition: { id: string; title: string } | null = null;
+    if (sourcePage === "tham-gia") {
+      if (!normalizedPositionId) {
+        return NextResponse.json({ error: "Vui lòng chọn vị trí đăng ký." }, { status: 400 });
+      }
+
+      selectedPosition = await prisma.volunteerPosition.findFirst({
+        where: { id: normalizedPositionId, published: true },
+        select: { id: true, title: true }
+      });
+      if (!selectedPosition) {
+        return NextResponse.json(
+          { error: "Đã khóa form, vui lòng theo dõi Fanpage Facebook để biết thêm thông tin chi tiết các đợt tuyển form sắp tới." },
+          { status: 400 }
+        );
+      }
+    }
+
     const lead = await prisma.lead.create({
       data: {
         fullName: sanitizeText(data.fullName),
         email: normalizedEmail,
         phone: normalizedPhone,
         sourcePage,
+        volunteerPositionId: selectedPosition?.id || null,
+        volunteerPositionTitle: selectedPosition?.title || null,
         message: sanitizeText(data.message || ""),
         birthYear: data.birthYear ? sanitizeText(data.birthYear) : null,
         address: sanitizeText(data.address || ""),
@@ -145,6 +167,7 @@ export async function POST(req: Request) {
         email: lead.email,
         phone: lead.phone,
         sourcePage: lead.sourcePage,
+        volunteerPositionTitle: lead.volunteerPositionTitle || undefined,
         birthYear: lead.birthYear || undefined,
         address: lead.address || undefined,
         message: lead.message || ""
