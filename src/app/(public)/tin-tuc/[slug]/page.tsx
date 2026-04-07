@@ -1,0 +1,56 @@
+import { notFound } from "next/navigation";
+import Image from "next/image";
+import { ExternalLink, Megaphone } from "lucide-react";
+import { prisma } from "@/lib/prisma";
+import { FACEBOOK_FANPAGE_URL } from "@/lib/constants";
+import { mediaAssets } from "@/lib/mock-content";
+
+export default async function NewsDetailPage({ params }: { params: { slug: string } }) {
+  const post = await prisma.post.findUnique({
+    where: { slug: params.slug }
+  });
+
+  if (!post || !post.published) return notFound();
+
+  return (
+    <article className="bg-white">
+      <section className="section-padding bg-eco-50">
+        <div className="container grid items-center gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+          <div>
+            <h1 className="max-w-4xl text-4xl font-bold leading-tight text-eco-900 md:text-5xl">{post.title}</h1>
+            <p className="mt-4 max-w-3xl text-muted-foreground">{post.excerpt}</p>
+          </div>
+          <div className="relative min-h-64 overflow-hidden rounded-3xl">
+            <Image
+              src={mediaAssets.article}
+              alt={post.title}
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 45vw"
+              className="object-cover"
+            />
+          </div>
+        </div>
+      </section>
+      <section className="section-padding">
+        <div className="container">
+          <div className="mx-auto max-w-4xl rounded-3xl border border-eco-100 bg-white p-6 shadow-sm md:p-10">
+            <div className="whitespace-pre-wrap text-base leading-8 text-foreground/90">{post.content}</div>
+          </div>
+          <div className="mx-auto mt-6 max-w-4xl rounded-2xl border border-eco-100 bg-eco-50/70 p-4 md:p-5">
+            <a
+              href={FACEBOOK_FANPAGE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-eco-800 hover:text-eco-900 hover:underline"
+            >
+              <Megaphone className="size-4 text-[#1877F2]" />
+              Theo dõi Fanpage để nhận thông báo bài viết và hoạt động mới nhất
+              <ExternalLink className="size-3.5" />
+            </a>
+          </div>
+        </div>
+      </section>
+    </article>
+  );
+}

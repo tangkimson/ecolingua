@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+dist
+.vercel
+.env
+.env.local
+.env.production
+coverage
+pnpm-debug.log*
+*.sqlite
+*.db
+prisma/dev.db
+prisma/dev.db-journal

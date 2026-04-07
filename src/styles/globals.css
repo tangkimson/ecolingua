@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 150 29% 14%;
+  --card: 0 0% 100%;
+  --card-foreground: 150 29% 14%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 150 29% 14%;
+  --primary: 150 53% 32%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 145 45% 95%;
+  --secondary-foreground: 150 29% 14%;
+  --muted: 150 24% 96%;
+  --muted-foreground: 151 12% 39%;
+  --accent: 48 92% 60%;
+  --accent-foreground: 35 65% 12%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 145 18% 87%;
+  --input: 145 18% 87%;
+  --ring: 150 53% 32%;
+  --radius: 0.9rem;
+}
+
+* {
+  @apply border-border;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+  min-height: 100dvh;
+  text-wrap: pretty;
+  background-image: radial-gradient(circle at 0% 0%, rgba(42, 157, 92, 0.05), transparent 35%),
+    radial-gradient(circle at 100% 0%, rgba(255, 209, 102, 0.08), transparent 30%);
+}
+
+.section-padding {
+  @apply py-14 md:py-20 lg:py-24;
+}
+
+::selection {
+  @apply bg-eco-200 text-eco-900;
+}
+
+@layer utilities {
+  .surface-card {
+    @apply rounded-2xl border border-eco-100/80 bg-white/90 shadow-[0_10px_35px_-18px_rgba(20,83,45,0.35)] backdrop-blur;
+  }
+
+  .title-display {
+    @apply text-4xl font-bold leading-tight tracking-tight md:text-5xl lg:text-6xl;
+  }
+
+  .title-section {
+    @apply text-3xl font-bold tracking-tight md:text-4xl;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .fade-up {
+    animation: fadeUp 0.5s ease-out both;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
