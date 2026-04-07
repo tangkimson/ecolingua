@@ -4,7 +4,7 @@ import { hash } from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@xanhvietnam.local";
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || "ecolinguavietnam@gmail.com";
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || "Admin@12345";
   const passwordHash = await hash(adminPassword, 10);
 
