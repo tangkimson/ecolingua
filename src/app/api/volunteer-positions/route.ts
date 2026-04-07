@@ -8,6 +8,10 @@ import { isTrustedOrigin } from "@/lib/security";
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const adminView = searchParams.get("adminView") === "true";
+  if (adminView) {
+    const session = await requireAdmin();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const positions = await prisma.volunteerPosition.findMany({
     where: adminView ? {} : { published: true },

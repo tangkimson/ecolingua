@@ -162,22 +162,34 @@ export function VolunteerForm({ sourcePage, positions }: VolunteerFormProps) {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="fullName">Họ và tên *</Label>
-          <Input name="fullName" id="fullName" required className="h-11 rounded-xl border-eco-200 bg-white" />
+          <Input
+            name="fullName"
+            id="fullName"
+            required
+            className="h-11 rounded-xl border-eco-200 bg-white"
+            aria-invalid={Boolean(getFieldError("fullName"))}
+          />
           {getFieldError("fullName") ? <p className="text-xs text-red-600">{getFieldError("fullName")}</p> : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor="phone">Số điện thoại *</Label>
-          <Input name="phone" id="phone" required className="h-11 rounded-xl border-eco-200 bg-white" />
+          <Input name="phone" id="phone" required className="h-11 rounded-xl border-eco-200 bg-white" aria-invalid={Boolean(getFieldError("phone"))} />
           {getFieldError("phone") ? <p className="text-xs text-red-600">{getFieldError("phone")}</p> : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email *</Label>
-          <Input name="email" id="email" type="email" required className="h-11 rounded-xl border-eco-200 bg-white" />
+          <Input name="email" id="email" type="email" required className="h-11 rounded-xl border-eco-200 bg-white" aria-invalid={Boolean(getFieldError("email"))} />
           {getFieldError("email") ? <p className="text-xs text-red-600">{getFieldError("email")}</p> : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor="birthYear">Năm sinh</Label>
-          <Input name="birthYear" id="birthYear" placeholder="Ví dụ: 1999" className="h-11 rounded-xl border-eco-200 bg-white" />
+          <Input
+            name="birthYear"
+            id="birthYear"
+            placeholder="Ví dụ: 1999"
+            className="h-11 rounded-xl border-eco-200 bg-white"
+            aria-invalid={Boolean(getFieldError("birthYear"))}
+          />
           {getFieldError("birthYear") ? <p className="text-xs text-red-600">{getFieldError("birthYear")}</p> : null}
         </div>
       </div>
@@ -191,7 +203,8 @@ export function VolunteerForm({ sourcePage, positions }: VolunteerFormProps) {
           id="volunteerPositionId"
           name="volunteerPositionId"
           required
-          className="h-11 w-full rounded-xl border border-eco-200 bg-white px-3 text-sm"
+          className="h-11 w-full rounded-xl border border-eco-200 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-invalid={Boolean(getFieldError("volunteerPositionId"))}
         >
           <option value="">Chọn vị trí bạn muốn ứng tuyển</option>
           {positions.map((position) => (
@@ -204,7 +217,7 @@ export function VolunteerForm({ sourcePage, positions }: VolunteerFormProps) {
       </div>
       <div className="space-y-2">
         <Label htmlFor="message">Bạn muốn chia sẻ thêm gì?</Label>
-        <Textarea name="message" id="message" className="rounded-xl border-eco-200 bg-white" />
+        <Textarea name="message" id="message" className="rounded-xl border-eco-200 bg-white" aria-invalid={Boolean(getFieldError("message"))} />
         {getFieldError("message") ? <p className="text-xs text-red-600">{getFieldError("message")}</p> : null}
       </div>
 
@@ -220,8 +233,16 @@ export function VolunteerForm({ sourcePage, positions }: VolunteerFormProps) {
         </div>
       ) : null}
 
-      {errorMessage ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{errorMessage}</p> : null}
-      {submitMessage ? <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{submitMessage}</p> : null}
+      {errorMessage ? (
+        <p role="alert" aria-live="assertive" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          {errorMessage}
+        </p>
+      ) : null}
+      {submitMessage ? (
+        <p aria-live="polite" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          {submitMessage}
+        </p>
+      ) : null}
 
       <p className="text-xs text-muted-foreground">Thông tin của bạn chỉ được dùng để điều phối hoạt động cộng đồng.</p>
       <Button type="submit" disabled={loading || (captchaEnabled && !captchaToken)} className="h-11 w-full rounded-xl">

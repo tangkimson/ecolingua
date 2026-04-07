@@ -1,10 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { VolunteerPositionsManager } from "@/components/admin/volunteer-positions-manager";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminVolunteerPositionsPage() {
-  const positions = await prisma.volunteerPosition.findMany({
-    orderBy: [{ order: "asc" }, { updatedAt: "desc" }]
-  });
+  let positions: Awaited<ReturnType<typeof prisma.volunteerPosition.findMany>> = [];
+  try {
+    positions = await prisma.volunteerPosition.findMany({
+      orderBy: [{ order: "asc" }, { updatedAt: "desc" }]
+    });
+  } catch {
+    positions = [];
+  }
 
   return (
     <div className="space-y-6">

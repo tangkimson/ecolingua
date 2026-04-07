@@ -3,7 +3,7 @@
 import Script from "next/script";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,9 @@ declare global {
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const callbackUrl = "/admin";
+  const searchParams = useSearchParams();
+  const callbackUrlParam = searchParams.get("callbackUrl");
+  const callbackUrl = callbackUrlParam && callbackUrlParam.startsWith("/") ? callbackUrlParam : "/admin";
   const captchaSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
   const captchaEnabled = Boolean(captchaSiteKey);
 
@@ -206,7 +208,11 @@ export default function AdminLoginPage() {
         <CardContent>
           <div className="mb-3 rounded-md border border-muted/80 bg-muted/30 px-3 py-2 text-sm font-medium">{stepTitle}</div>
 
-          {errorMessage ? <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{errorMessage}</p> : null}
+          {errorMessage ? (
+            <p role="alert" aria-live="assertive" className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+              {errorMessage}
+            </p>
+          ) : null}
 
           {step === "credentials" ? (
             <div className="space-y-4">
@@ -246,7 +252,7 @@ export default function AdminLoginPage() {
                 </p>
               )}
 
-              <Button className="w-full" type="button" disabled={loading || !captchaEnabled} onClick={handleCredentialStep}>
+              <Button className="w-full" type="button" disabled={loading || (captchaEnabled && !captchaToken)} onClick={handleCredentialStep}>
                 {loading ? "Đang xác minh..." : "Tiếp tục"}
               </Button>
             </div>

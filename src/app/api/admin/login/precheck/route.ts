@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   }
 
   const ip = getClientIp();
-  const rate = simpleRateLimit(`admin-precheck:${ip}`, 10, 60_000);
+  const rate = await simpleRateLimit(`admin-precheck:${ip}`, 10, 60_000);
   if (!rate.success) {
     return NextResponse.json({ error: "Bạn thao tác quá nhanh. Vui lòng thử lại sau." }, { status: 429 });
   }

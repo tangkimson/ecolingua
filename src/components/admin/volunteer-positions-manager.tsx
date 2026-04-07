@@ -139,6 +139,9 @@ export function VolunteerPositionsManager({ initialPositions }: { initialPositio
   }
 
   async function removePosition(item: VolunteerPositionItem) {
+    const confirmed = window.confirm(`Xóa vị trí "${item.title}"? Hành động này không thể hoàn tác.`);
+    if (!confirmed) return;
+
     try {
       setBusyId(item.id);
       const res = await fetch(`/api/volunteer-positions/${item.id}`, { method: "DELETE" });
@@ -201,7 +204,7 @@ export function VolunteerPositionsManager({ initialPositions }: { initialPositio
               <Label htmlFor="position-published">Trạng thái</Label>
               <select
                 id="position-published"
-                className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm"
+                className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={form.published ? "published" : "hidden"}
                 onChange={(event) => setForm((prev) => ({ ...prev, published: event.target.value === "published" }))}
               >

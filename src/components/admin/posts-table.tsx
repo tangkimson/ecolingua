@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Search, Eye, Pencil, Trash2, ArrowUpDown } from "lucide-react";
 
@@ -50,6 +50,7 @@ export function PostsTable({ posts }: { posts: PostItem[] }) {
   const [sortBy, setSortBy] = useState<SortOption>("updated-desc");
   const [busyPostId, setBusyPostId] = useState<string | null>(null);
   const [confirmDeletePost, setConfirmDeletePost] = useState<PostItem | null>(null);
+  const cancelDeleteButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const filteredPosts = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -113,6 +114,20 @@ export function PostsTable({ posts }: { posts: PostItem[] }) {
     }
   }
 
+  useEffect(() => {
+    if (!confirmDeletePost) return;
+
+    cancelDeleteButtonRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setConfirmDeletePost(null);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [confirmDeletePost]);
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border bg-white p-3 md:p-4">
@@ -127,18 +142,20 @@ export function PostsTable({ posts }: { posts: PostItem[] }) {
             />
           </div>
           <select
+            aria-label="Lọc bài viết theo trạng thái"
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-            className="h-10 rounded-lg border border-input bg-white px-3 text-sm"
+            className="h-10 rounded-lg border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="all">Tất cả trạng thái</option>
             <option value="draft">Bản nháp</option>
             <option value="published">Đã đăng</option>
           </select>
           <select
+            aria-label="Sắp xếp danh sách bài viết"
             value={sortBy}
             onChange={(event) => setSortBy(event.target.value as SortOption)}
-            className="h-10 rounded-lg border border-input bg-white px-3 text-sm"
+            className="h-10 rounded-lg border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="updated-desc">Mới cập nhật</option>
             <option value="updated-asc">Cập nhật cũ nhất</option>
@@ -272,14 +289,21 @@ export function PostsTable({ posts }: { posts: PostItem[] }) {
           "fixed inset-0 z-50 items-center justify-center bg-black/40 p-4",
           confirmDeletePost ? "flex" : "hidden"
         )}
+        role="presentation"
+        onClick={(event) => {
+          if (event.target !== event.currentTarget) return;
+          setConfirmDeletePost(null);
+        }}
       >
-        <div className="w-full max-w-md rounded-xl border bg-white p-5">
-          <h3 className="text-lg font-semibold">Xóa bài viết?</h3>
+        <div className="w-full max-w-md rounded-xl border bg-white p-5" role="dialog" aria-modal="true" aria-labelledby="delete-post-title">
+          <h3 id="delete-post-title" className="text-lg font-semibold">
+            Xóa bài viết?
+          </h3>
           <p className="mt-2 text-sm text-muted-foreground">
             Bài viết <strong>{confirmDeletePost?.title}</strong> sẽ bị xóa vĩnh viễn và không thể khôi phục.
           </p>
           <div className="mt-5 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setConfirmDeletePost(null)}>
+            <Button ref={cancelDeleteButtonRef} variant="outline" onClick={() => setConfirmDeletePost(null)}>
               Hủy
             </Button>
             <Button

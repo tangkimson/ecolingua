@@ -153,9 +153,10 @@ export function LeadsTable({ leads: initialLeads }: { leads: LeadItem[] }) {
         <div className="grid gap-3 md:grid-cols-3">
           <Input placeholder="Tìm theo tên, email, SĐT..." value={query} onChange={(event) => setQuery(event.target.value)} />
           <select
+            aria-label="Lọc lead theo trạng thái"
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
-            className="h-10 rounded-md border border-input bg-white px-3 text-sm"
+            className="h-10 rounded-md border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -164,9 +165,10 @@ export function LeadsTable({ leads: initialLeads }: { leads: LeadItem[] }) {
             ))}
           </select>
           <select
+            aria-label="Lọc lead theo nguồn gửi"
             value={sourceFilter}
             onChange={(event) => setSourceFilter(event.target.value)}
-            className="h-10 rounded-md border border-input bg-white px-3 text-sm"
+            className="h-10 rounded-md border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {sourceOptions.map((source) => (
               <option key={source} value={source}>
@@ -211,6 +213,7 @@ export function LeadsTable({ leads: initialLeads }: { leads: LeadItem[] }) {
                           Chi tiết
                         </Button>
                         <select
+                          aria-label={`Cập nhật trạng thái cho ${lead.fullName}`}
                           className="h-9 rounded-md border border-input bg-white px-2 text-xs"
                           value={lead.status}
                           disabled={busyId === lead.id}

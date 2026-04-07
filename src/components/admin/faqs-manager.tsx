@@ -149,6 +149,9 @@ export function FaqsManager({ initialFaqs }: { initialFaqs: FaqItem[] }) {
   }
 
   async function removeFaq(item: FaqItem) {
+    const confirmed = window.confirm(`Xóa FAQ "${item.question}"? Hành động này không thể hoàn tác.`);
+    if (!confirmed) return;
+
     try {
       setBusyId(item.id);
       const res = await fetch(`/api/faqs/${item.id}`, { method: "DELETE" });
@@ -200,7 +203,7 @@ export function FaqsManager({ initialFaqs }: { initialFaqs: FaqItem[] }) {
               <Label htmlFor="faq-location">Hiển thị ở</Label>
               <select
                 id="faq-location"
-                className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm"
+                className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={form.location}
                 onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value as "JOIN" | "CONTACT" }))}
               >
@@ -223,7 +226,7 @@ export function FaqsManager({ initialFaqs }: { initialFaqs: FaqItem[] }) {
               <Label htmlFor="faq-published">Trạng thái</Label>
               <select
                 id="faq-published"
-                className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm"
+                className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={form.published ? "published" : "hidden"}
                 onChange={(event) => setForm((prev) => ({ ...prev, published: event.target.value === "published" }))}
               >

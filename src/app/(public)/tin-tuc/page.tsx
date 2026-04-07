@@ -1,9 +1,25 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdaptiveImageFrame } from "@/components/ui/adaptive-image-frame";
+import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { mediaAssets } from "@/lib/mock-content";
 import { parseCoverImageTransform } from "@/lib/image-presentation";
+
+export const metadata: Metadata = {
+  title: `Tin tức | ${SITE_NAME}`,
+  description: "Cập nhật hoạt động, câu chuyện cộng đồng và kiến thức môi trường từ EcoLingua Vietnam.",
+  alternates: {
+    canonical: `${SITE_URL}/tin-tuc`
+  },
+  openGraph: {
+    title: `Tin tức | ${SITE_NAME}`,
+    description: "Cập nhật hoạt động, câu chuyện cộng đồng và kiến thức môi trường từ EcoLingua Vietnam.",
+    url: `${SITE_URL}/tin-tuc`,
+    type: "website"
+  }
+};
 
 export default async function NewsPage() {
   const posts = await prisma.post.findMany({
@@ -35,7 +51,7 @@ export default async function NewsPage() {
       <section className="section-padding">
         <div className="container grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {posts.map((post, index) => (
-            <Card key={post.id} className="overflow-hidden border-eco-100/80">
+            <Card key={post.id} className="overflow-hidden border-eco-100/80 transition-shadow hover:shadow-md">
               <div className="relative h-48">
                 {(() => {
                   const transformed = parseCoverImageTransform(post.coverImage || mediaAssets.programs[index % mediaAssets.programs.length]);
@@ -63,7 +79,12 @@ export default async function NewsPage() {
               </CardContent>
             </Card>
           ))}
-          {!posts.length && <p className="text-sm text-muted-foreground">Chưa có bài viết nào.</p>}
+          {!posts.length && (
+            <div className="col-span-full rounded-2xl border border-dashed border-eco-200 bg-eco-50/50 px-6 py-10 text-center">
+              <p className="text-base font-semibold text-eco-900">Chưa có bài viết nào</p>
+              <p className="mt-1 text-sm text-muted-foreground">Nội dung mới sẽ được cập nhật trong thời gian tới. Vui lòng quay lại sau.</p>
+            </div>
+          )}
         </div>
       </section>
     </div>

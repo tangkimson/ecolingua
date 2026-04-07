@@ -1,10 +1,42 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ExternalLink, Megaphone } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { FACEBOOK_FANPAGE_URL } from "@/lib/constants";
+import { FACEBOOK_FANPAGE_URL, SITE_NAME, SITE_URL } from "@/lib/constants";
 import { PostContent } from "@/components/posts/post-content";
 import { AdaptiveImageFrame } from "@/components/ui/adaptive-image-frame";
 import { parseCoverImageTransform } from "@/lib/image-presentation";
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const post = await prisma.post.findUnique({
+    where: { slug: params.slug },
+    select: { title: true, excerpt: true, published: true, coverImage: true, slug: true }
+  });
+
+  if (!post || !post.published) {
+    return {
+      title: `Tin tức | ${SITE_NAME}`,
+      description: "Bài viết không tồn tại hoặc chưa được xuất bản."
+    };
+  }
+
+  const cover = parseCoverImageTransform(post.coverImage);
+  const canonicalUrl = `${SITE_URL}/tin-tuc/${post.slug}`;
+  return {
+    title: `${post.title} | ${SITE_NAME}`,
+    description: post.excerpt,
+    alternates: {
+      canonical: canonicalUrl
+    },
+    openGraph: {
+      title: `${post.title} | ${SITE_NAME}`,
+      description: post.excerpt,
+      url: canonicalUrl,
+      type: "article",
+      images: cover.src ? [{ url: cover.src, alt: post.title }] : undefined
+    }
+  };
+}
 
 export default async function NewsDetailPage({ params }: { params: { slug: string } }) {
   const post = await prisma.post.findUnique({

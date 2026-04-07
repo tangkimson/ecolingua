@@ -114,8 +114,8 @@ body {
     @apply bg-eco-200 text-eco-900;
   }
 
-  .ProseMirror:focus {
-    @apply outline-none;
+  .ProseMirror:focus-visible {
+    @apply outline-none ring-2 ring-eco-500 ring-offset-2;
   }
 }
 

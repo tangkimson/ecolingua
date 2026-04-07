@@ -5,8 +5,13 @@ import { requireAdmin } from "@/lib/admin";
 import { isTrustedOrigin } from "@/lib/security";
 
 export async function GET() {
-  const posts = await prisma.post.findMany({ orderBy: { createdAt: "desc" } });
-  return NextResponse.json(posts);
+  const session = await requireAdmin();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const posts = await prisma.post.findMany({
+    orderBy: { createdAt: "desc" }
+  });
+  return NextResponse.json(posts, { status: 200 });
 }
 
 export async function POST(req: Request) {

@@ -307,7 +307,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
       Color,
       Highlight.configure({ multicolor: true }),
       RichImage.configure({
-        allowBase64: true
+        allowBase64: false
       })
     ],
     content,

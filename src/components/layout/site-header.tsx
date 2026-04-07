@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ExternalLink, Leaf, Megaphone, Menu, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { FACEBOOK_FANPAGE_URL, NAV_LINKS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,8 @@ export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [currentHash, setCurrentHash] = useState("");
+  const mobileMenuId = useId();
+  const menuToggleRef = useRef<HTMLButtonElement | null>(null);
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";
 
   useEffect(() => {
@@ -24,6 +26,28 @@ export function SiteHeader() {
     window.addEventListener("hashchange", syncHash);
     return () => window.removeEventListener("hashchange", syncHash);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      menuToggleRef.current?.focus();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [open]);
 
   function isActiveLink(href: string) {
     const [basePath, hash] = href.split("#");
@@ -85,16 +109,19 @@ export function SiteHeader() {
         </div>
 
         <button
+          ref={menuToggleRef}
           onClick={() => setOpen((v) => !v)}
           className="inline-flex rounded-full border border-eco-200 bg-white p-2.5 text-eco-800 shadow-sm transition-colors hover:bg-eco-50 lg:hidden"
-          aria-label="Mở menu"
+          aria-label={open ? "Đóng menu" : "Mở menu"}
+          aria-expanded={open}
+          aria-controls={mobileMenuId}
         >
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
       </div>
 
       {open && (
-        <div className="border-t border-eco-100 bg-white/95 lg:hidden">
+        <div id={mobileMenuId} className="border-t border-eco-100 bg-white/95 lg:hidden">
           <div className="container py-4">
             <div className="surface-card flex flex-col gap-2 p-3">
               {NAV_LINKS.map((link) => {

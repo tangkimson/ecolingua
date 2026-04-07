@@ -6,8 +6,10 @@ import { VolunteerForm } from "@/components/forms/volunteer-form";
 import { faqsJoin, mediaAssets } from "@/lib/mock-content";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function JoinPage() {
-  const [dbFaqs, positions] = await Promise.all([
+  const [dbFaqsResult, positionsResult] = await Promise.allSettled([
     prisma.faq.findMany({
       where: { location: "JOIN", published: true },
       orderBy: [{ order: "asc" }, { updatedAt: "desc" }]
@@ -17,6 +19,8 @@ export default async function JoinPage() {
       orderBy: [{ order: "asc" }, { updatedAt: "desc" }]
     })
   ]);
+  const dbFaqs = dbFaqsResult.status === "fulfilled" ? dbFaqsResult.value : [];
+  const positions = positionsResult.status === "fulfilled" ? positionsResult.value : [];
   const items = dbFaqs.length ? dbFaqs.map((item) => ({ q: item.question, a: item.answer })) : faqsJoin;
   const positionsText = positions.map((item) => item.title).join(" - ");
 

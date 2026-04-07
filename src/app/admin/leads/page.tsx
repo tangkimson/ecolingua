@@ -1,10 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { LeadsTable } from "@/components/admin/leads-table";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminLeadsPage() {
-  const leads = await prisma.lead.findMany({
-    orderBy: { createdAt: "desc" }
-  });
+  let leads: Awaited<ReturnType<typeof prisma.lead.findMany>> = [];
+  try {
+    leads = await prisma.lead.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+  } catch {
+    leads = [];
+  }
 
   return (
     <div className="space-y-4">
