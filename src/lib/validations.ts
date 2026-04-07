@@ -27,13 +27,19 @@ export const postSchema = z.object({
 });
 
 export const adminLoginSchema = z.object({
-  email: z.string().email(),
+  identifier: z.string().trim().min(3).max(200),
   password: z.string().min(6).max(128),
   totpCode: z
     .string()
     .trim()
     .regex(/^\d{6}$/, "Mã xác thực phải gồm 6 chữ số")
     .optional()
+});
+
+export const adminPrecheckSchema = z.object({
+  identifier: z.string().trim().min(3).max(200),
+  password: z.string().min(6).max(128),
+  captchaToken: z.string().trim().min(1, "Vui lòng xác minh CAPTCHA")
 });
 
 export const adminSettingSchema = z.object({

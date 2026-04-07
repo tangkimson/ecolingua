@@ -17,6 +17,7 @@ Du an Next.js 14 (App Router) co Public Website + Admin Dashboard, da chuan hoa 
 - Admin dashboard: login, quan ly bai viet, lead, cai dat
 - Bao mat admin:
   - Password hash (`bcryptjs`)
+  - CAPTCHA (Cloudflare Turnstile) truoc khi vao buoc 2FA
   - 2FA TOTP (secret ma hoa truoc khi luu DB)
   - Middleware bao ve route `/admin/*` (tru `/admin/login`)
 
@@ -63,6 +64,8 @@ POSTGRES_PRISMA_URL="postgresql://postgres:postgres@localhost:5432/ecolingua?sch
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-long-random-secret"
 TOTP_ENCRYPTION_KEY="another-long-random-secret"
+NEXT_PUBLIC_TURNSTILE_SITE_KEY="your-turnstile-site-key"
+TURNSTILE_SECRET_KEY="your-turnstile-secret-key"
 ADMIN_NOTIFICATION_EMAIL="xanhvietnam.org@gmail.com"
 NEXT_PUBLIC_SITE_URL="http://localhost:3000"
 ```
@@ -99,7 +102,14 @@ Mo [http://localhost:3000](http://localhost:3000) va dang nhap admin tai [http:/
 5. Nhap ma 6 so de kich hoat.
 6. Dang xuat va dang nhap lai kem ma 2FA.
 
-### 3.8 Lenh kiem tra truoc khi push
+### 3.8 Login flow admin (moi)
+
+1. Nhap email/username + mat khau.
+2. Hoan thanh CAPTCHA.
+3. Server xac minh password + CAPTCHA thanh cong moi cho qua buoc OTP.
+4. Neu account bat 2FA, nhap ma OTP de vao admin.
+
+### 3.9 Lenh kiem tra truoc khi push
 
 ```bash
 pnpm lint
