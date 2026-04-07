@@ -21,6 +21,11 @@ export default async function EditPostPage({ params }: { params: { id: string } 
           coverImage: post.coverImage,
           published: post.published
         }}
+        metadata={{
+          createdAt: post.createdAt,
+          updatedAt: post.updatedAt,
+          publishedAt: post.publishedAt
+        }}
       />
     </div>
   );
