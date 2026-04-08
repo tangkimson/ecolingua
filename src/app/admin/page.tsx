@@ -1,7 +1,16 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboardPage() {
+  const session = await requireAdmin();
+  if (!session) {
+    redirect(`/admin/login?callbackUrl=${encodeURIComponent("/admin")}`);
+  }
+
   const [posts, leads, notifications] = await Promise.all([
     prisma.post.count(),
     prisma.lead.count(),

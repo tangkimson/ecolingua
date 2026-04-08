@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { PostForm } from "@/components/admin/post-form";
 import { requireAdmin } from "@/lib/admin";
 
+export const dynamic = "force-dynamic";
+
 export default async function NewPostPage() {
   const session = await requireAdmin();
   if (!session) {

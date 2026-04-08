@@ -12,6 +12,9 @@ import { prisma } from "@/lib/prisma";
 import { adminLoginSchema } from "@/lib/validations";
 import { decryptTotpSecret, verifyTotpCode } from "@/lib/totp";
 
+const ADMIN_SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
+const ADMIN_SESSION_UPDATE_AGE_SECONDS = 15 * 60;
+
 function getCookieFromHeader(headerValue: string | undefined, cookieName: string) {
   if (!headerValue) return null;
   const parts = headerValue.split(";").map((entry) => entry.trim());
@@ -24,7 +27,14 @@ function getCookieFromHeader(headerValue: string | undefined, cookieName: string
 }
 
 export const authOptions: NextAuthOptions = {
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: ADMIN_SESSION_MAX_AGE_SECONDS,
+    updateAge: ADMIN_SESSION_UPDATE_AGE_SECONDS
+  },
+  jwt: {
+    maxAge: ADMIN_SESSION_MAX_AGE_SECONDS
+  },
   pages: {
     signIn: "/admin/login"
   },
@@ -85,13 +95,42 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role || "ADMIN";
+        token.email = user.email;
       }
+
+      const tokenId = typeof token.id === "string" ? token.id : "";
+      const tokenEmail = typeof token.email === "string" ? token.email : "";
+      let adminUser: { id: string; email: string; role: string } | null = null;
+
+      if (tokenId) {
+        adminUser = await prisma.adminUser.findUnique({
+          where: { id: tokenId },
+          select: { id: true, email: true, role: true }
+        });
+      } else if (tokenEmail) {
+        adminUser = await prisma.adminUser.findUnique({
+          where: { email: tokenEmail.toLowerCase() },
+          select: { id: true, email: true, role: true }
+        });
+      }
+
+      if (!adminUser || adminUser.role !== "ADMIN") {
+        delete token.id;
+        delete token.role;
+        delete token.email;
+        return token;
+      }
+
+      token.id = adminUser.id;
+      token.role = adminUser.role;
+      token.email = adminUser.email;
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = String(token.id || "");
-        session.user.role = String(token.role || "ADMIN");
+        session.user.role = String(token.role || "");
+        session.user.email = typeof token.email === "string" ? token.email : session.user.email;
       }
       return session;
     }

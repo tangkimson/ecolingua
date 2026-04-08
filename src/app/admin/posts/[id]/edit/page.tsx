@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { PostForm } from "@/components/admin/post-form";
 import { requireAdmin } from "@/lib/admin";
 
+export const dynamic = "force-dynamic";
+
 export default async function EditPostPage({ params }: { params: { id: string } }) {
   const session = await requireAdmin();
   if (!session) {

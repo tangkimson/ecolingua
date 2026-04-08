@@ -1,9 +1,16 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { VolunteerPositionsManager } from "@/components/admin/volunteer-positions-manager";
+import { requireAdmin } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminVolunteerPositionsPage() {
+  const session = await requireAdmin();
+  if (!session) {
+    redirect(`/admin/login?callbackUrl=${encodeURIComponent("/admin/volunteer-positions")}`);
+  }
+
   let positions: Awaited<ReturnType<typeof prisma.volunteerPosition.findMany>> = [];
   try {
     positions = await prisma.volunteerPosition.findMany({

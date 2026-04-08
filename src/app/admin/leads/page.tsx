@@ -1,9 +1,16 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { LeadsTable } from "@/components/admin/leads-table";
+import { requireAdmin } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLeadsPage() {
+  const session = await requireAdmin();
+  if (!session) {
+    redirect(`/admin/login?callbackUrl=${encodeURIComponent("/admin/leads")}`);
+  }
+
   let leads: Awaited<ReturnType<typeof prisma.lead.findMany>> = [];
   try {
     leads = await prisma.lead.findMany({

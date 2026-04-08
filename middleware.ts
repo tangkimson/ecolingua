@@ -13,17 +13,34 @@ const SECURITY_HEADERS = {
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-pathname", pathname);
 
-  if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
+  const isProtectedAdminPage = pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
+  const isProtectedAdminApi = pathname.startsWith("/api/admin") && pathname !== "/api/admin/login/precheck";
+
+  if (isProtectedAdminPage || isProtectedAdminApi) {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    if (!token) {
+    const isAuthorizedAdmin = Boolean(token?.id && token?.role === "ADMIN");
+
+    if (!isAuthorizedAdmin) {
+      if (isProtectedAdminApi) {
+        const unauthorized = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        Object.entries(SECURITY_HEADERS).forEach(([key, value]) => unauthorized.headers.set(key, value));
+        return unauthorized;
+      }
+
       const url = new URL("/admin/login", req.url);
       url.searchParams.set("callbackUrl", pathname);
       return NextResponse.redirect(url);
     }
   }
 
-  const response = NextResponse.next();
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders
+    }
+  });
   Object.entries(SECURITY_HEADERS).forEach(([key, value]) => response.headers.set(key, value));
   return response;
 }

@@ -1,7 +1,16 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { FaqsManager } from "@/components/admin/faqs-manager";
+import { requireAdmin } from "@/lib/admin";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminFaqsPage() {
+  const session = await requireAdmin();
+  if (!session) {
+    redirect(`/admin/login?callbackUrl=${encodeURIComponent("/admin/faqs")}`);
+  }
+
   const faqs = await prisma.faq.findMany({
     orderBy: [{ order: "asc" }, { updatedAt: "desc" }]
   });

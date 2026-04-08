@@ -6,6 +6,8 @@ import { requireAdmin } from "@/lib/admin";
 import { Button } from "@/components/ui/button";
 import { PostsTable } from "@/components/admin/posts-table";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminPostsPage() {
   const session = await requireAdmin();
   if (!session) {
