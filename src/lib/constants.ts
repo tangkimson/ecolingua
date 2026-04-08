@@ -11,5 +11,3 @@ export const NAV_LINKS = [
   { label: "Tin Tức", href: "/tin-tuc" },
   { label: "Liên Hệ", href: "/lien-he" }
 ] as const;
-
-export const DEFAULT_ADMIN_EMAIL = "ecolinguavietnam@gmail.com";

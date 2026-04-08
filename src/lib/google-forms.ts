@@ -1,4 +1,4 @@
-const GOOGLE_FORMS_HOSTS = new Set(["docs.google.com", "forms.gle"]);
+const GOOGLE_FORMS_HOSTS = new Set(["docs.google.com", "forms.google.com", "forms.gle"]);
 
 function parseInputUrl(raw: string) {
   let parsed: URL;
@@ -40,18 +40,15 @@ async function resolveShortGoogleFormLink(url: URL) {
 }
 
 function buildEmbedUrl(url: URL) {
-  const segments = url.pathname.split("/").filter(Boolean);
-  const formsIndex = segments.indexOf("forms");
-  const dIndex = segments.indexOf("d");
-  const eIndex = segments.indexOf("e");
+  const path = url.pathname;
+  const embeddedMatch = path.match(/\/forms\/d\/e\/([^/]+)/i);
+  const publicMatch = path.match(/\/forms\/d\/([^/]+)/i);
 
-  let embedPath = "";
-  if (formsIndex === 0 && dIndex === 1 && eIndex === 2 && segments[3]) {
-    // /forms/d/e/<id>/viewform
-    embedPath = `/forms/d/e/${segments[3]}/viewform`;
-  } else if (formsIndex === 0 && dIndex === 1 && segments[2]) {
-    // /forms/d/<id>/...
-    embedPath = `/forms/d/${segments[2]}/viewform`;
+  let embedPath: string;
+  if (embeddedMatch?.[1]) {
+    embedPath = `/forms/d/e/${embeddedMatch[1]}/viewform`;
+  } else if (publicMatch?.[1]) {
+    embedPath = `/forms/d/${publicMatch[1]}/viewform`;
   } else {
     throw new Error("Không nhận diện được link Google Forms.");
   }
@@ -74,10 +71,12 @@ export async function normalizeGoogleFormLink(rawUrl: string | null | undefined)
 
   const parsed = parseInputUrl(rawUrl);
   const resolved = await resolveShortGoogleFormLink(parsed);
-  const embedUrl = buildEmbedUrl(resolved);
+  const canonicalInput = new URL(resolved.toString());
+  canonicalInput.hostname = canonicalInput.hostname.toLowerCase() === "forms.google.com" ? "docs.google.com" : canonicalInput.hostname;
+  const embedUrl = buildEmbedUrl(canonicalInput);
 
   return {
-    originalUrl: resolved.toString(),
+    originalUrl: canonicalInput.toString(),
     embedUrl
   };
 }

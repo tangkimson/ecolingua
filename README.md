@@ -9,12 +9,11 @@ Du an Next.js 14 (App Router) co Public Website + Admin Dashboard, da chuan hoa 
 - NextAuth (Credentials)
 - 2FA TOTP (Google Authenticator)
 - Tailwind CSS + UI components
-- Resend (gui email lead)
 
 ## 2) Tinh nang chinh
 
 - Public pages: trang chu, gioi thieu, tham gia, tin tuc, lien he, quyen gop
-- Admin dashboard: login, quan ly bai viet, lead, cai dat
+- Admin dashboard: login, quan ly bai viet, FAQ, cai dat
 - Bao mat admin:
   - Password hash (`bcryptjs`)
   - CAPTCHA (Cloudflare Turnstile) truoc khi vao buoc 2FA
@@ -66,8 +65,6 @@ NEXTAUTH_SECRET="your-long-random-secret"
 TOTP_ENCRYPTION_KEY="another-long-random-secret"
 NEXT_PUBLIC_TURNSTILE_SITE_KEY="your-turnstile-site-key"
 TURNSTILE_SECRET_KEY="your-turnstile-secret-key"
-ADMIN_NOTIFICATION_EMAIL="xanhvietnam.org@gmail.com"
-ADMIN_NOTIFICATION_EMAILS="ecolinguavietnam@gmail.com,backup@gmail.com"
 NEXT_PUBLIC_SITE_URL="http://localhost:3000"
 ```
 
@@ -161,10 +158,6 @@ Dung Neon/Supabase/Railway va lay connection string PostgreSQL.
 - `NEXTAUTH_URL` (vd: `https://your-app.vercel.app`)
 - `NEXTAUTH_SECRET`
 - `TOTP_ENCRYPTION_KEY`
-- `ADMIN_NOTIFICATION_EMAIL`
-- `ADMIN_NOTIFICATION_EMAILS` (optional, comma-separated)
-- `RESEND_API_KEY`
-- `RESEND_FROM_EMAIL`
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
 - `TURNSTILE_SECRET_KEY`
 - `NEXT_PUBLIC_SITE_URL`
@@ -193,7 +186,7 @@ Bam Deploy. Sau khi xong:
 
 - Mo `/admin/login`
 - Dang nhap admin
-- Kiem tra CRUD post + lead
+- Kiem tra CRUD post + FAQ
 - Kiem tra bat/tat 2FA
 
 ---

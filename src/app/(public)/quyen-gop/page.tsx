@@ -23,8 +23,8 @@ export default function DonatePage() {
             cho cộng đồng.
           </p>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-eco-100">
-            Nguồn lực được ưu tiên cho nội dung chất lượng, đào tạo tình nguyện viên và triển khai các sáng kiến môi trường tại địa
-            phương theo hướng minh bạch, đo đếm được tác động.
+            Nguồn lực được ưu tiên cho nội dung chất lượng, đào tạo cộng đồng và triển khai các sáng kiến môi trường tại địa phương
+            theo hướng minh bạch, đo đếm được tác động.
           </p>
           <div className="mt-6 flex gap-3">
             <Button variant="yellow" className="rounded-full" asChild>

@@ -36,7 +36,7 @@ export function SiteFooter() {
           <ul className="mt-3 space-y-2 text-sm text-eco-100">
             <li>
               <Link href="/tham-gia" className="inline-flex items-center gap-1.5 hover:text-white hover:underline">
-                Đăng ký tình nguyện viên
+                Biểu mẫu tham gia
                 <ArrowUpRight className="size-3.5" />
               </Link>
             </li>

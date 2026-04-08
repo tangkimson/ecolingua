@@ -1,27 +1,5 @@
 import { z } from "zod";
 
-export const leadSchema = z.object({
-  fullName: z.string().trim().min(2, "Họ tên phải có ít nhất 2 ký tự").max(120),
-  email: z.string().trim().email("Email không hợp lệ").max(200),
-  phone: z
-    .string()
-    .trim()
-    .min(8, "Số điện thoại quá ngắn")
-    .max(20)
-    .regex(/^[\d+\-\s().]+$/, "Số điện thoại chỉ được chứa số và ký tự liên hệ hợp lệ"),
-  sourcePage: z.string().trim().min(1).max(100),
-  message: z.string().trim().max(1200).optional().default(""),
-  birthYear: z
-    .string()
-    .trim()
-    .optional()
-    .transform((value) => (value && value.length ? value : undefined))
-    .refine((value) => value === undefined || /^\d{4}$/.test(value), "Năm sinh phải gồm 4 chữ số"),
-  address: z.string().trim().max(200).optional().default(""),
-  captchaToken: z.string().trim().optional().default(""),
-  website: z.string().trim().max(200).optional().default("")
-});
-
 export const postSchema = z.object({
   title: z.string().min(5).max(180),
   slug: z
@@ -60,7 +38,6 @@ export const adminPrecheckSchema = z.object({
 });
 
 export const adminSettingSchema = z.object({
-  notificationEmail: z.string().email(),
   googleFormUrl: z
     .string()
     .trim()

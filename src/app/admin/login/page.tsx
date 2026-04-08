@@ -28,7 +28,10 @@ export default function AdminLoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrlParam = searchParams.get("callbackUrl");
-  const callbackUrl = callbackUrlParam && callbackUrlParam.startsWith("/") ? callbackUrlParam : "/admin";
+  const callbackUrl =
+    callbackUrlParam && /^\/(?!\/)/.test(callbackUrlParam) && !callbackUrlParam.includes("\\")
+      ? callbackUrlParam
+      : "/admin";
   const captchaSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
   const captchaEnabled = Boolean(captchaSiteKey);
 

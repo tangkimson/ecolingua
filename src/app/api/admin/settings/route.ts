@@ -21,7 +21,7 @@ export async function GET() {
     if (!isSchemaMismatchError(error)) throw error;
     const legacySetting = await prisma.adminSetting.findUnique({
       where: { id: "main" },
-      select: { id: true, notificationEmail: true, siteMeta: true, updatedAt: true }
+      select: { id: true, siteMeta: true, updatedAt: true }
     });
     return NextResponse.json({
       ...legacySetting,
@@ -57,12 +57,10 @@ export async function PUT(req: Request) {
     setting = await prisma.adminSetting.upsert({
       where: { id: "main" },
       update: {
-        notificationEmail: parsed.data.notificationEmail,
         googleFormUrl: normalizedGoogleForm.embedUrl
       },
       create: {
         id: "main",
-        notificationEmail: parsed.data.notificationEmail,
         googleFormUrl: normalizedGoogleForm.embedUrl
       }
     });

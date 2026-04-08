@@ -11,13 +11,9 @@ export default async function AdminDashboardPage() {
     redirect(`/admin/login?callbackUrl=${encodeURIComponent("/admin")}`);
   }
 
-  const [posts, leads, notifications] = await Promise.all([
+  const [posts, faqs] = await Promise.all([
     prisma.post.count(),
-    prisma.lead.count(),
-    prisma.adminNotification.findMany({
-      take: 8,
-      orderBy: { createdAt: "desc" }
-    })
+    prisma.faq.count()
   ]);
 
   return (
@@ -38,28 +34,13 @@ export default async function AdminDashboardPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Tổng lead</CardTitle>
+            <CardTitle>Tổng FAQ</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold text-eco-700">{leads}</p>
+            <p className="text-4xl font-bold text-eco-700">{faqs}</p>
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Thông báo mới</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          {notifications.map((item) => (
-            <div key={item.id} className="rounded-md border p-3">
-              <p className="font-semibold">{item.type}</p>
-              <p className="text-muted-foreground">{item.payload}</p>
-            </div>
-          ))}
-          {!notifications.length && <p className="text-muted-foreground">Chưa có thông báo.</p>}
-        </CardContent>
-      </Card>
     </div>
   );
 }

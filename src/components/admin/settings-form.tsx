@@ -9,13 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function SettingsForm({
-  defaultEmail,
   defaultGoogleFormUrl
 }: {
-  defaultEmail: string;
   defaultGoogleFormUrl: string;
 }) {
-  const [email, setEmail] = useState(defaultEmail);
   const [googleFormUrl, setGoogleFormUrl] = useState(defaultGoogleFormUrl);
   const [loading, setLoading] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean | null>(null);
@@ -49,7 +46,6 @@ export function SettingsForm({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          notificationEmail: email,
           googleFormUrl
         })
       });
@@ -135,17 +131,6 @@ export function SettingsForm({
   return (
     <div className="space-y-4 rounded-xl border bg-white p-6">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="notificationEmail">Email nhận form từ website</Label>
-          <Input
-            id="notificationEmail"
-            name="notificationEmail"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
         <div className="space-y-2">
           <Label htmlFor="googleFormUrl">Link Google Form cho trang Tham gia</Label>
           <Input

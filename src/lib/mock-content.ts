@@ -24,32 +24,6 @@ export const programs = [
   }
 ];
 
-export const faqsJoin = [
-  {
-    q: "Mình chưa có kinh nghiệm thì có tham gia được không?",
-    a: "Có. EcoLingua có lộ trình onboarding theo từng ban để bạn bắt đầu từ nền tảng cơ bản."
-  },
-  {
-    q: "EcoLingua đang tuyển những vị trí nào?",
-    a: "Hiện tại ưu tiên các vị trí Content & Social Media, Design và Translation."
-  },
-  {
-    q: "Bao lâu có thể nhận phản hồi?",
-    a: "Thông thường trong 3-5 ngày làm việc, tùy số lượng hồ sơ ở từng đợt."
-  }
-];
-
-export const faqsContact = [
-  {
-    q: "Tôi muốn hợp tác truyền thông hoặc học thuật thì liên hệ thế nào?",
-    a: "Bạn điền form liên hệ hoặc gửi email, đội ngũ sẽ phản hồi và đề xuất hướng hợp tác phù hợp."
-  },
-  {
-    q: "EcoLingua có hỗ trợ nhóm địa phương triển khai hoạt động không?",
-    a: "Có. Chúng tôi có bộ tài liệu hướng dẫn và khung triển khai để đồng hành cùng các nhóm tại địa phương."
-  }
-];
-
 export const mediaAssets = {
   homeHero: "/images/hero/home-hero-main.jpg",
   mission: "/images/sections/home-mission.jpg",

@@ -38,7 +38,7 @@ export function HomePrograms() {
         <div className="mt-8">
           <Button asChild size="lg" className="rounded-full">
             <a href="/tham-gia">
-              Đăng ký cộng tác cùng dự án
+              Xem biểu mẫu tham gia
               <ArrowRight className="size-4" />
             </a>
           </Button>

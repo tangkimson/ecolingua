@@ -11,19 +11,19 @@ async function main() {
     {
       location: "JOIN",
       question: "Mình chưa có kinh nghiệm thì có tham gia được không?",
-      answer: "Có. EcoLingua có lộ trình onboarding theo từng ban để bạn bắt đầu từ nền tảng cơ bản.",
+      answer: "Có. Bạn có thể bắt đầu từ các hoạt động phù hợp với quỹ thời gian và kinh nghiệm hiện tại.",
       order: 1
     },
     {
       location: "JOIN",
-      question: "EcoLingua đang tuyển những vị trí nào?",
-      answer: "Các vị trí mở theo từng đợt, thường gồm Content, Design, Dịch thuật và Truyền thông cộng đồng.",
+      question: "Mình có thể theo dõi cơ hội tham gia mới ở đâu?",
+      answer: "Các đợt mở biểu mẫu mới được cập nhật trên website và Fanpage chính thức của EcoLingua.",
       order: 2
     },
     {
       location: "JOIN",
-      question: "Bao lâu mình sẽ nhận phản hồi sau khi gửi form?",
-      answer: "Thông thường trong 3-5 ngày làm việc, tùy số lượng hồ sơ ở từng đợt tuyển.",
+      question: "Sau khi gửi biểu mẫu tham gia thì cần làm gì tiếp theo?",
+      answer: "Bạn chỉ cần theo dõi email/Fanpage để nhận các thông báo tiếp theo khi chương trình phù hợp được mở.",
       order: 3
     },
     {
@@ -78,7 +78,7 @@ async function main() {
     });
     createdFaqCount += 1;
   }
-  console.log(`- Seeded FAQ items: +${createdFaqCount} (JOIN/CONTACT)`);
+  console.log(`- Seeded FAQ items: +${createdFaqCount} (tham-gia/lien-he)`);
 }
 
 main()

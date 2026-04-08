@@ -103,7 +103,7 @@ export function SiteHeader() {
             </a>
           </Button>
           <Button variant="yellow" className="rounded-full px-6 shadow-sm" asChild>
-            <Link href="/tham-gia">Đăng ký ngay</Link>
+            <Link href="/tham-gia">Tham gia ngay</Link>
           </Button>
         </div>
 
@@ -148,7 +148,7 @@ export function SiteHeader() {
               })}
               <Button variant="yellow" className="mt-2 w-full" asChild>
                 <Link href="/tham-gia" onClick={() => setOpen(false)}>
-                  Đăng ký ngay
+                  Tham gia ngay
                 </Link>
               </Button>
               <Button variant="secondary" className="w-full" asChild>

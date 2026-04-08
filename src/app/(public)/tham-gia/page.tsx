@@ -18,7 +18,7 @@ export default async function JoinPage() {
   ]);
   const dbFaqs = dbFaqsResult.status === "fulfilled" ? dbFaqsResult.value : [];
   const setting = settingResult.status === "fulfilled" ? settingResult.value : null;
-  const items = dbFaqs.map((item) => ({ q: item.question, a: item.answer }));
+  const items = dbFaqs.map((item) => ({ id: item.id, q: item.question, a: item.answer }));
   const googleFormEmbedUrl = setting?.googleFormUrl || null;
 
   return (
@@ -26,7 +26,7 @@ export default async function JoinPage() {
       <section className="section-padding">
         <div className="container grid gap-8 lg:grid-cols-2">
           <div>
-            <h1 className="title-display text-eco-900">Tham gia đội ngũ EcoLingua Vietnam</h1>
+            <h1 className="title-display text-eco-900">Tham gia cùng EcoLingua Vietnam</h1>
             <p className="mt-4 leading-relaxed text-muted-foreground">
               Nếu bạn muốn học hỏi, thử sức và tạo tác động thật trong các dự án môi trường, EcoLingua đang chờ bạn.
             </p>
@@ -69,7 +69,7 @@ export default async function JoinPage() {
           <Accordion type="single" collapsible className="mt-4 rounded-2xl border border-eco-100 bg-white px-6">
             {items.length ? (
               items.map((item) => (
-                <AccordionItem key={item.q} value={item.q}>
+                <AccordionItem key={item.id} value={item.id}>
                   <AccordionTrigger>{item.q}</AccordionTrigger>
                   <AccordionContent>{item.a}</AccordionContent>
                 </AccordionItem>

@@ -16,11 +16,21 @@ function extractPublicFormUrl(embedUrl: string) {
 export function GoogleFormEmbed({ embedUrl }: GoogleFormEmbedProps) {
   const [isLoading, setIsLoading] = useState(Boolean(embedUrl));
   const [hasError, setHasError] = useState(false);
+  const [showBlockedHint, setShowBlockedHint] = useState(false);
 
   useEffect(() => {
     setIsLoading(Boolean(embedUrl));
     setHasError(false);
+    setShowBlockedHint(false);
   }, [embedUrl]);
+
+  useEffect(() => {
+    if (!embedUrl || !isLoading) return;
+    const timer = window.setTimeout(() => {
+      setShowBlockedHint(true);
+    }, 8000);
+    return () => window.clearTimeout(timer);
+  }, [embedUrl, isLoading]);
 
   const fallbackUrl = useMemo(() => {
     if (!embedUrl) return null;
@@ -64,28 +74,33 @@ export function GoogleFormEmbed({ embedUrl }: GoogleFormEmbedProps) {
           Đang tải biểu mẫu...
         </p>
       ) : null}
-      {hasError ? (
+      {hasError || showBlockedHint ? (
         <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Không thể nhúng biểu mẫu trong trang. Vui lòng mở form ở tab mới để gửi đăng ký.
+          Nếu trình duyệt chặn nhúng biểu mẫu, vui lòng dùng nút Mở form tab mới phía trên để gửi đăng ký.
         </p>
       ) : null}
 
       <iframe
-        title="Google Form đăng ký cộng tác viên EcoLingua"
+        title="Google Form tham gia EcoLingua"
         src={embedUrl}
         loading="lazy"
-        className="h-[820px] w-full rounded-xl border bg-white md:h-[900px]"
-        sandbox="allow-forms allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"
+        className="h-[780px] w-full rounded-xl border bg-white md:h-[900px]"
+        sandbox="allow-forms allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+        allow="clipboard-read; clipboard-write"
         referrerPolicy="strict-origin-when-cross-origin"
         onLoad={() => {
           setIsLoading(false);
           setHasError(false);
+          setShowBlockedHint(false);
         }}
         onError={() => {
           setIsLoading(false);
           setHasError(true);
         }}
       />
+      <p className="mt-3 text-xs text-muted-foreground">
+        Nếu bạn thấy thông báo &quot;This content is blocked&quot;, hãy dùng nút &quot;Mở form tab mới&quot; để hoàn tất biểu mẫu.
+      </p>
     </div>
   );
 }

@@ -42,31 +42,9 @@ model Faq {
   updatedAt DateTime @updatedAt
 }
 
-model Lead {
-  id         String   @id @default(cuid())
-  fullName   String
-  phone      String
-  email      String
-  sourcePage String
-  message    String?
-  birthYear  String?
-  address    String?
-  status     String   @default("NEW")
-  createdAt  DateTime @default(now())
-}
-
 model AdminSetting {
-  id                String   @id @default("main")
-  notificationEmail String
-  googleFormUrl     String?
-  siteMeta          String?
-  updatedAt         DateTime @updatedAt
-}
-
-model AdminNotification {
-  id        String   @id @default(cuid())
-  type      String
-  payload   String
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id            String   @id @default("main")
+  googleFormUrl String?
+  siteMeta      String?
+  updatedAt     DateTime @updatedAt
 }
