@@ -25,7 +25,7 @@ export default async function JoinPage() {
     <div className="bg-eco-50/70">
       <section className="section-padding">
         <div className="container grid gap-8 lg:grid-cols-2">
-          <div>
+          <div className="order-2 lg:order-1">
             <h1 className="title-display text-eco-900">Tham gia cùng EcoLingua Vietnam</h1>
             <p className="mt-4 leading-relaxed text-muted-foreground">
               Nếu bạn muốn học hỏi, thử sức và tạo tác động thật trong các dự án môi trường, EcoLingua đang chờ bạn.
@@ -59,7 +59,9 @@ export default async function JoinPage() {
               />
             </div>
           </div>
-          <GoogleFormEmbed embedUrl={googleFormEmbedUrl} />
+          <div className="order-1 lg:order-2">
+            <GoogleFormEmbed embedUrl={googleFormEmbedUrl} />
+          </div>
         </div>
       </section>
 

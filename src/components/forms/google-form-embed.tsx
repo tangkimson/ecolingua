@@ -84,7 +84,7 @@ export function GoogleFormEmbed({ embedUrl }: GoogleFormEmbedProps) {
         title="Google Form tham gia EcoLingua"
         src={embedUrl}
         loading="lazy"
-        className="h-[780px] w-full rounded-xl border bg-white md:h-[900px]"
+        className="h-[560px] w-full rounded-xl border bg-white sm:h-[620px] lg:h-[680px]"
         sandbox="allow-forms allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
         allow="clipboard-read; clipboard-write"
         referrerPolicy="strict-origin-when-cross-origin"
