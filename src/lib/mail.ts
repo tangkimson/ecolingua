@@ -6,7 +6,6 @@ type LeadEmailPayload = {
   email: string;
   phone: string;
   sourcePage: string;
-  volunteerPositionTitle?: string;
   address?: string;
   birthYear?: string;
   message?: string;
@@ -39,7 +38,6 @@ export async function sendLeadEmail(payload: LeadEmailPayload) {
       <p><strong>Email:</strong> ${payload.email}</p>
       <p><strong>SĐT:</strong> ${payload.phone}</p>
       <p><strong>Trang gửi:</strong> ${payload.sourcePage}</p>
-      <p><strong>Vị trí đăng ký:</strong> ${payload.volunteerPositionTitle || "Không có"}</p>
       <p><strong>Năm sinh:</strong> ${payload.birthYear || "Không có"}</p>
       <p><strong>Địa chỉ:</strong> ${payload.address || "Không có"}</p>
       <p><strong>Nội dung:</strong> ${payload.message || "Không có"}</p>
@@ -50,7 +48,6 @@ export async function sendLeadEmail(payload: LeadEmailPayload) {
       `Email: ${payload.email}`,
       `SĐT: ${payload.phone}`,
       `Trang gửi: ${payload.sourcePage}`,
-      `Vị trí đăng ký: ${payload.volunteerPositionTitle || "Không có"}`,
       `Năm sinh: ${payload.birthYear || "Không có"}`,
       `Địa chỉ: ${payload.address || "Không có"}`,
       `Nội dung: ${payload.message || "Không có"}`

@@ -2,27 +2,24 @@ import Image from "next/image";
 import { ExternalLink, Megaphone } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { FACEBOOK_FANPAGE_URL } from "@/lib/constants";
-import { VolunteerForm } from "@/components/forms/volunteer-form";
+import { GoogleFormEmbed } from "@/components/forms/google-form-embed";
 import { mediaAssets } from "@/lib/mock-content";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function JoinPage() {
-  const [dbFaqsResult, positionsResult] = await Promise.allSettled([
+  const [dbFaqsResult, settingResult] = await Promise.allSettled([
     prisma.faq.findMany({
       where: { location: "JOIN", published: true },
       orderBy: [{ order: "asc" }, { updatedAt: "desc" }]
     }),
-    prisma.volunteerPosition.findMany({
-      where: { published: true },
-      orderBy: [{ order: "asc" }, { updatedAt: "desc" }]
-    })
+    prisma.adminSetting.findUnique({ where: { id: "main" } })
   ]);
   const dbFaqs = dbFaqsResult.status === "fulfilled" ? dbFaqsResult.value : [];
-  const positions = positionsResult.status === "fulfilled" ? positionsResult.value : [];
+  const setting = settingResult.status === "fulfilled" ? settingResult.value : null;
   const items = dbFaqs.map((item) => ({ q: item.question, a: item.answer }));
-  const positionsText = positions.map((item) => item.title).join(" - ");
+  const googleFormEmbedUrl = setting?.googleFormUrl || null;
 
   return (
     <div className="bg-eco-50/70">
@@ -38,12 +35,6 @@ export default async function JoinPage() {
               <li>Nhận hướng dẫn onboarding theo ban chuyên môn.</li>
               <li>Tham gia dự án thật cùng cố vấn và cộng đồng.</li>
             </ol>
-            <div className="mt-6 rounded-2xl border border-eco-100 bg-white p-4 text-sm text-muted-foreground">
-              <p className="font-semibold text-eco-800">Vị trí đang ưu tiên tuyển</p>
-              <p className="mt-2">
-                {positionsText || "Đã khóa form, vui lòng theo dõi Fanpage Facebook để biết thêm thông tin chi tiết các đợt tuyển form sắp tới."}
-              </p>
-            </div>
             <div className="mt-4 rounded-2xl border border-[#1877F2]/20 bg-[#1877F2]/5 p-4 text-sm text-eco-900/85">
               <p className="font-semibold">Thông báo tuyển thành viên được đăng trước trên Fanpage</p>
               <a
@@ -68,14 +59,7 @@ export default async function JoinPage() {
               />
             </div>
           </div>
-          <VolunteerForm
-            sourcePage="tham-gia"
-            positions={positions.map((item) => ({
-              id: item.id,
-              title: item.title,
-              description: item.description
-            }))}
-          />
+          <GoogleFormEmbed embedUrl={googleFormEmbedUrl} />
         </div>
       </section>
 

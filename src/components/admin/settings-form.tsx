@@ -8,8 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function SettingsForm({ defaultEmail }: { defaultEmail: string }) {
+export function SettingsForm({
+  defaultEmail,
+  defaultGoogleFormUrl
+}: {
+  defaultEmail: string;
+  defaultGoogleFormUrl: string;
+}) {
   const [email, setEmail] = useState(defaultEmail);
+  const [googleFormUrl, setGoogleFormUrl] = useState(defaultGoogleFormUrl);
   const [loading, setLoading] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
@@ -41,12 +48,17 @@ export function SettingsForm({ defaultEmail }: { defaultEmail: string }) {
       const res = await fetch("/api/admin/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notificationEmail: email })
+        body: JSON.stringify({
+          notificationEmail: email,
+          googleFormUrl
+        })
       });
-      if (!res.ok) throw new Error("Update failed");
-      toast.success("Đã cập nhật email nhận form.");
-    } catch {
-      toast.error("Không thể lưu cài đặt.");
+      const payload = (await res.json()) as { error?: string; googleFormUrl?: string | null };
+      if (!res.ok) throw new Error(payload.error || "Update failed");
+      setGoogleFormUrl(payload.googleFormUrl || "");
+      toast.success("Đã cập nhật cài đặt.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không thể lưu cài đặt.");
     } finally {
       setLoading(false);
     }
@@ -133,6 +145,20 @@ export function SettingsForm({ defaultEmail }: { defaultEmail: string }) {
             onChange={(e) => setEmail(e.target.value)}
             required
           />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="googleFormUrl">Link Google Form cho trang Tham gia</Label>
+          <Input
+            id="googleFormUrl"
+            name="googleFormUrl"
+            type="url"
+            value={googleFormUrl}
+            onChange={(e) => setGoogleFormUrl(e.target.value)}
+            placeholder="https://docs.google.com/forms/d/e/.../viewform hoặc forms.gle/..."
+          />
+          <p className="text-xs text-muted-foreground">
+            Hệ thống tự chuyển mọi định dạng link Google Forms sang dạng nhúng iframe.
+          </p>
         </div>
         <Button type="submit" disabled={loading}>
           {loading ? "Đang lưu..." : "Lưu cài đặt"}

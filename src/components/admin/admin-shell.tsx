@@ -19,7 +19,6 @@ export function AdminShell({ children }: AdminShellProps) {
     { href: "/admin/posts", label: "Quản lý bài viết" },
     { href: "/admin/faqs", label: "Quản lý FAQ" },
     { href: "/admin/leads", label: "Danh sách đăng ký" },
-    { href: "/admin/volunteer-positions", label: "Vị trí cộng tác viên" },
     { href: "/admin/settings", label: "Cài đặt" }
   ];
 

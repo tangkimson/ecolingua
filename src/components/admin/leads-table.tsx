@@ -18,7 +18,6 @@ type LeadItem = {
   email: string;
   phone: string;
   sourcePage: string;
-  volunteerPositionTitle: string | null;
   message: string | null;
   birthYear: string | null;
   address: string | null;
@@ -37,7 +36,7 @@ const STATUS_OPTIONS = [
 ];
 
 function sourceLabel(sourcePage: string) {
-  if (sourcePage === "tham-gia") return "Đăng ký cộng tác";
+  if (sourcePage === "tham-gia") return "Tham gia (legacy)";
   if (sourcePage === "lien-he") return "Liên hệ";
   if (sourcePage === "newsletter-home") return "Newsletter";
   return sourcePage;
@@ -93,7 +92,6 @@ export function LeadsTable({ leads: initialLeads }: { leads: LeadItem[] }) {
         lead.fullName.toLowerCase().includes(normalizedQuery) ||
         lead.email.toLowerCase().includes(normalizedQuery) ||
         lead.phone.toLowerCase().includes(normalizedQuery) ||
-        lead.volunteerPositionTitle?.toLowerCase().includes(normalizedQuery) ||
         lead.address?.toLowerCase().includes(normalizedQuery) ||
         lead.message?.toLowerCase().includes(normalizedQuery);
       return matchesStatus && matchesSource && matchesQuery;
@@ -340,9 +338,6 @@ export function LeadsTable({ leads: initialLeads }: { leads: LeadItem[] }) {
               </p>
               <p>
                 <span className="font-semibold">Nguồn:</span> {sourceLabel(selectedLead.sourcePage)}
-              </p>
-              <p>
-                <span className="font-semibold">Vị trí đăng ký:</span> {selectedLead.volunteerPositionTitle || "Không có"}
               </p>
               <p>
                 <span className="font-semibold">Năm sinh:</span> {selectedLead.birthYear || "Không có"}

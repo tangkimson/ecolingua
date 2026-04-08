@@ -48,8 +48,6 @@ model Lead {
   phone      String
   email      String
   sourcePage String
-  volunteerPositionId    String?
-  volunteerPositionTitle String?
   message    String?
   birthYear  String?
   address    String?
@@ -60,6 +58,7 @@ model Lead {
 model AdminSetting {
   id                String   @id @default("main")
   notificationEmail String
+  googleFormUrl     String?
   siteMeta          String?
   updatedAt         DateTime @updatedAt
 }
@@ -70,14 +69,4 @@ model AdminNotification {
   payload   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-}
-
-model VolunteerPosition {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  published   Boolean  @default(true)
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 }

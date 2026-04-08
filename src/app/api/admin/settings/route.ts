@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { adminSettingSchema } from "@/lib/validations";
 import { isTrustedOrigin } from "@/lib/security";
+import { normalizeGoogleFormLink } from "@/lib/google-forms";
 
 export async function GET() {
   const session = await requireAdmin();
@@ -22,12 +23,26 @@ export async function PUT(req: Request) {
   const parsed = adminSettingSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
+  let normalizedGoogleForm;
+  try {
+    normalizedGoogleForm = await normalizeGoogleFormLink(parsed.data.googleFormUrl);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Google Form URL không hợp lệ." },
+      { status: 400 }
+    );
+  }
+
   const setting = await prisma.adminSetting.upsert({
     where: { id: "main" },
-    update: { notificationEmail: parsed.data.notificationEmail },
+    update: {
+      notificationEmail: parsed.data.notificationEmail,
+      googleFormUrl: normalizedGoogleForm.embedUrl
+    },
     create: {
       id: "main",
-      notificationEmail: parsed.data.notificationEmail
+      notificationEmail: parsed.data.notificationEmail,
+      googleFormUrl: normalizedGoogleForm.embedUrl
     }
   });
 

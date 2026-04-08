@@ -24,7 +24,7 @@ export default async function AdminLeadsPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-3xl font-bold">Danh sách đăng ký</h1>
-        <p className="text-sm text-muted-foreground">Lead từ form tham gia, liên hệ và newsletter.</p>
+        <p className="text-sm text-muted-foreground">Lead từ form liên hệ và newsletter.</p>
       </div>
       <LeadsTable leads={leads} />
     </div>
