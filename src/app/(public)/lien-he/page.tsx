@@ -1,9 +1,7 @@
-import Image from "next/image";
-import { Mail, Megaphone } from "lucide-react";
+import { Clock3, Mail, MapPin, Megaphone, MessageSquare } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { FACEBOOK_FANPAGE_URL } from "@/lib/constants";
-import { mediaAssets } from "@/lib/mock-content";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -35,15 +33,38 @@ export default async function ContactPage() {
                 <strong>Phạm vi:</strong> TP. HCM - Hoạt động toàn quốc
               </p>
             </div>
-            <div className="relative mt-8 min-h-64 overflow-hidden rounded-3xl">
-              <Image
-                src={mediaAssets.contact}
-                alt="Đội ngũ đang trao đổi hợp tác cộng đồng"
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 45vw"
-                className="object-cover"
-              />
+            <div className="surface-card mt-8 rounded-3xl border-eco-100 p-6">
+              <h2 className="text-lg font-bold text-eco-900">Phản hồi nhanh, đúng đầu mối</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Gửi nội dung ngắn gọn theo mục tiêu của bạn để đội ngũ phân luồng và phản hồi nhanh hơn.
+              </p>
+              <ol className="mt-4 space-y-2 text-sm text-muted-foreground">
+                <li>1. Mô tả ngắn nhu cầu hợp tác hoặc tham gia.</li>
+                <li>2. Đính kèm mốc thời gian mong muốn.</li>
+                <li>3. Để lại đầu mối liên hệ để đội ngũ phản hồi.</li>
+              </ol>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="inline-flex items-center gap-2 text-sm font-medium text-eco-900">
+                    <Clock3 className="size-4 text-eco-700" />
+                    Thời gian phản hồi
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">Trong 24-48 giờ làm việc</p>
+                </div>
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="inline-flex items-center gap-2 text-sm font-medium text-eco-900">
+                    <MapPin className="size-4 text-eco-700" />
+                    Khu vực triển khai
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">TP.HCM và các dự án toàn quốc</p>
+                </div>
+              </div>
+              <div className="mt-4 rounded-xl border bg-white p-4 text-sm text-muted-foreground">
+                <p className="font-medium text-eco-900">Gợi ý nội dung email</p>
+                <p className="mt-1">
+                  Nêu rõ mục tiêu hợp tác, đối tượng hưởng lợi và mốc thời gian dự kiến để đội ngũ hỗ trợ phù hợp.
+                </p>
+              </div>
             </div>
           </div>
           <div className="surface-card space-y-4 rounded-2xl border-eco-100 p-6">
@@ -68,8 +89,22 @@ export default async function ContactPage() {
               </a>
             </div>
             <Button asChild className="w-full rounded-xl">
-              <a href="mailto:ecolinguavietnam@gmail.com">Gửi email ngay</a>
+              <a href="mailto:ecolinguavietnam@gmail.com?subject=Li%C3%AAn%20h%E1%BB%87%20h%E1%BB%A3p%20t%C3%A1c%20c%C3%B9ng%20EcoLingua%20Vietnam">Gửi email ngay</a>
             </Button>
+            <Button asChild variant="outline" className="w-full rounded-xl">
+              <a href={FACEBOOK_FANPAGE_URL} target="_blank" rel="noopener noreferrer">
+                Nhắn qua fanpage
+              </a>
+            </Button>
+            <div className="rounded-xl border bg-eco-50/70 p-4 text-sm text-eco-900">
+              <p className="inline-flex items-center gap-2 font-medium">
+                <MessageSquare className="size-4 text-eco-700" />
+                Cần trao đổi chi tiết hơn?
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Bạn có thể gửi trước thông tin qua email, sau đó đội ngũ sẽ hẹn lịch trao đổi phù hợp.
+              </p>
+            </div>
           </div>
         </div>
       </section>

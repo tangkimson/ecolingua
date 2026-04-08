@@ -26,6 +26,18 @@ export default async function NewsPage() {
     where: { published: true },
     orderBy: { publishedAt: "desc" }
   });
+  const latestPost = posts[0] ?? null;
+  const featuredTopics = ["Hoạt động cộng đồng", "Giáo dục môi trường", "Lối sống xanh", "Tái chế thực hành"];
+  const postCountLabel = `${posts.length} bài viết`;
+
+  const formatPublishedDate = (date: Date | null) =>
+    date
+      ? new Intl.DateTimeFormat("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric"
+        }).format(date)
+      : "Đang cập nhật";
 
   return (
     <div className="bg-white">
@@ -36,15 +48,34 @@ export default async function NewsPage() {
             <p className="mt-3 text-muted-foreground">
               Cập nhật hoạt động, câu chuyện cộng đồng và kiến thức môi trường được chọn lọc từ góc nhìn thực hành.
             </p>
+            <p className="mt-4 inline-flex rounded-full border border-eco-200 bg-white px-3 py-1 text-xs font-semibold text-eco-700">{postCountLabel}</p>
           </div>
-          <div className="relative min-h-64 overflow-hidden rounded-3xl">
-            <AdaptiveImageFrame
-              src={mediaAssets.news}
-              alt="Bản tin và hoạt động môi trường"
-              priority
-              sizes="(max-width: 1024px) 100vw, 45vw"
-              className="min-h-64 rounded-3xl"
-            />
+          <div className="surface-card min-h-64 rounded-3xl border-eco-100 p-6">
+            <p className="text-sm font-semibold uppercase tracking-wide text-eco-700">Chủ đề nổi bật</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {featuredTopics.map((topic) => (
+                <span key={topic} className="rounded-full border border-eco-200 bg-eco-50 px-3 py-1 text-xs font-medium text-eco-800">
+                  {topic}
+                </span>
+              ))}
+            </div>
+            <div className="mt-6 rounded-2xl border bg-muted/20 p-4">
+              <p className="text-sm font-semibold text-eco-900">Bài viết mới nhất</p>
+              {latestPost ? (
+                <>
+                  <p className="mt-2 line-clamp-2 text-base font-semibold text-eco-900">{latestPost.title}</p>
+                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{latestPost.excerpt}</p>
+                  <p className="mt-2 text-xs font-medium uppercase tracking-wide text-eco-700">
+                    Cập nhật: {formatPublishedDate(latestPost.publishedAt)}
+                  </p>
+                  <Link href={`/tin-tuc/${latestPost.slug}`} className="mt-3 inline-block text-sm font-semibold text-eco-700 hover:underline">
+                    Đọc ngay
+                  </Link>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">Nội dung mới sẽ được cập nhật trong thời gian gần nhất.</p>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -70,6 +101,7 @@ export default async function NewsPage() {
               </div>
               <CardHeader>
                 <CardTitle className="line-clamp-2 text-xl">{post.title}</CardTitle>
+                <p className="text-xs font-medium uppercase tracking-wide text-eco-700">Ngày đăng: {formatPublishedDate(post.publishedAt)}</p>
               </CardHeader>
               <CardContent>
                 <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">{post.excerpt}</p>
