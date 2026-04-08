@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { ArrowUpRight, Globe, Mail, Megaphone, Phone } from "lucide-react";
 import { FACEBOOK_FANPAGE_URL } from "@/lib/constants";
+import { EcoLinguaLogo } from "@/components/brand/ecolingua-logo";
 
 export function SiteFooter() {
   return (
     <footer className="bg-gradient-to-br from-eco-950 via-eco-900 to-eco-800 text-white">
       <div className="container grid gap-10 py-16 md:grid-cols-2 lg:grid-cols-4">
         <div>
-          <h3 className="text-xl font-bold text-white">EcoLingua Vietnam</h3>
+          <div className="flex items-center gap-3">
+            <EcoLinguaLogo size="md" framed className="bg-white/95" />
+            <h3 className="text-xl font-bold text-white">EcoLingua Vietnam</h3>
+          </div>
           <p className="mt-3 text-sm text-eco-100">Ngôn ngữ cho hành động môi trường.</p>
           <p className="mt-3 text-sm leading-relaxed text-eco-200">
             Sáng kiến phi lợi nhuận kết nối tri thức khí hậu với cộng đồng qua dịch thuật, giáo dục và truyền thông.

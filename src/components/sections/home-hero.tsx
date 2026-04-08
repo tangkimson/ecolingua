@@ -3,6 +3,7 @@ import Image from "next/image";
 import { ArrowRight, Leaf, Sparkles } from "lucide-react";
 import { mediaAssets } from "@/lib/mock-content";
 import { Button } from "@/components/ui/button";
+import { EcoLinguaLogo } from "@/components/brand/ecolingua-logo";
 
 export function HomeHero() {
   return (
@@ -51,6 +52,9 @@ export function HomeHero() {
         </div>
 
         <div className="relative fade-up lg:ml-auto lg:max-w-xl">
+          <div className="pointer-events-none absolute -top-8 right-4 z-10 hidden md:block">
+            <EcoLinguaLogo size="md" framed className="bg-white shadow-[0_12px_30px_-18px_rgba(0,0,0,0.5)]" />
+          </div>
           <div className="surface-card overflow-hidden border-white/10 bg-white/10 p-2 shadow-[0_25px_55px_-30px_rgba(0,0,0,0.55)] backdrop-blur-xl">
             <div className="relative h-72 overflow-hidden rounded-2xl md:h-[22rem]">
               <Image

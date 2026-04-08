@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EcoLinguaLogo } from "@/components/brand/ecolingua-logo";
 
 type LoginStep = "credentials" | "otp";
 
@@ -181,6 +182,9 @@ export default function AdminLoginPage() {
       ) : null}
       <Card className="w-full max-w-md border-eco-100 shadow-lg">
         <CardHeader>
+          <div className="mb-2 flex justify-center">
+            <EcoLinguaLogo size="lg" />
+          </div>
           <CardTitle className="text-xl">Đăng nhập Admin Dashboard</CardTitle>
           <p className="text-sm text-muted-foreground">Đăng nhập theo từng bước để tăng cường bảo mật.</p>
 

@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ExternalLink, Leaf, Megaphone, Menu, X } from "lucide-react";
+import { ExternalLink, Megaphone, Menu, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { FACEBOOK_FANPAGE_URL, NAV_LINKS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { EcoLinguaLogo } from "@/components/brand/ecolingua-logo";
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -68,9 +69,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 border-b border-eco-100/80 bg-white/85 backdrop-blur-xl">
       <div className="container flex h-20 items-center justify-between gap-4">
         <Link href="/" className="group inline-flex items-center gap-3">
-          <span className="inline-flex size-10 items-center justify-center rounded-full bg-eco-100 text-eco-800 transition-colors group-hover:bg-eco-200">
-            <Leaf className="size-5" />
-          </span>
+          <EcoLinguaLogo size="md" className="transition-transform duration-200 group-hover:scale-[1.02]" />
           <span>
             <span className="block text-base font-extrabold uppercase tracking-wide text-eco-900">EcoLingua Vietnam</span>
             <span className="block text-xs font-medium text-eco-700/90">Ngôn ngữ cho hành động khí hậu</span>
@@ -124,6 +123,13 @@ export function SiteHeader() {
         <div id={mobileMenuId} className="border-t border-eco-100 bg-white/95 lg:hidden">
           <div className="container py-4">
             <div className="surface-card flex flex-col gap-2 p-3">
+              <div className="mb-1 flex items-center gap-3 rounded-xl bg-eco-50/70 p-2.5">
+                <EcoLinguaLogo size="sm" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-eco-900">EcoLingua Vietnam</p>
+                  <p className="truncate text-xs text-eco-700">Ngôn ngữ cho hành động khí hậu</p>
+                </div>
+              </div>
               {NAV_LINKS.map((link) => {
                 const active = isActiveLink(link.href);
                 return (
