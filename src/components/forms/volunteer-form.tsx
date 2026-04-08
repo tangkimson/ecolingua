@@ -19,6 +19,7 @@ declare global {
     turnstile?: {
       render: (target: HTMLElement, options: Record<string, unknown>) => string;
       reset: (widgetId?: string) => void;
+      remove?: (widgetId?: string) => void;
     };
   }
 }
@@ -37,21 +38,73 @@ export function VolunteerForm({ sourcePage, positions }: VolunteerFormProps) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [captchaToken, setCaptchaToken] = useState("");
   const [captchaScriptLoaded, setCaptchaScriptLoaded] = useState(false);
+  const [captchaLoadHint, setCaptchaLoadHint] = useState<string | null>(null);
 
   const captchaContainerRef = useRef<HTMLDivElement | null>(null);
   const captchaWidgetIdRef = useRef<string | null>(null);
+  const captchaRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const captchaRetryCountRef = useRef(0);
+
+  const clearCaptchaRetry = useCallback(() => {
+    if (captchaRetryTimeoutRef.current) {
+      clearTimeout(captchaRetryTimeoutRef.current);
+      captchaRetryTimeoutRef.current = null;
+    }
+  }, []);
+
+  const scheduleCaptchaRetry = useCallback(() => {
+    if (captchaRetryCountRef.current >= 4) {
+      setCaptchaLoadHint("CAPTCHA chưa tải ổn định. Bạn có thể tải lại trang nếu vẫn không hiện.");
+      return;
+    }
+    clearCaptchaRetry();
+    captchaRetryCountRef.current += 1;
+    captchaRetryTimeoutRef.current = setTimeout(() => {
+      if (window.turnstile) {
+        setCaptchaScriptLoaded(true);
+      } else {
+        scheduleCaptchaRetry();
+      }
+    }, 500 * captchaRetryCountRef.current);
+  }, [clearCaptchaRetry]);
 
   const renderCaptchaWidget = useCallback(() => {
-    if (!captchaEnabled || !captchaScriptLoaded || !captchaContainerRef.current || !window.turnstile) return;
-    captchaContainerRef.current.innerHTML = "";
-    captchaWidgetIdRef.current = window.turnstile.render(captchaContainerRef.current, {
-      sitekey: captchaSiteKey,
-      theme: "light",
-      callback: (token: string) => setCaptchaToken(token),
-      "expired-callback": () => setCaptchaToken(""),
-      "error-callback": () => setCaptchaToken("")
-    });
-  }, [captchaEnabled, captchaScriptLoaded, captchaSiteKey]);
+    if (!captchaEnabled || !captchaScriptLoaded || !captchaContainerRef.current) return;
+    if (!window.turnstile) {
+      scheduleCaptchaRetry();
+      return;
+    }
+
+    try {
+      if (captchaWidgetIdRef.current) {
+        window.turnstile.remove?.(captchaWidgetIdRef.current);
+      }
+      captchaContainerRef.current.innerHTML = "";
+      setCaptchaLoadHint(null);
+      captchaWidgetIdRef.current = window.turnstile.render(captchaContainerRef.current, {
+        sitekey: captchaSiteKey,
+        theme: "light",
+        callback: (token: string) => {
+          captchaRetryCountRef.current = 0;
+          setCaptchaLoadHint(null);
+          setCaptchaToken(token);
+        },
+        "expired-callback": () => setCaptchaToken(""),
+        "error-callback": () => {
+          setCaptchaToken("");
+          setCaptchaLoadHint("Không thể tải CAPTCHA ổn định. Đang thử tải lại...");
+          setCaptchaScriptLoaded(false);
+          scheduleCaptchaRetry();
+        }
+      });
+      captchaRetryCountRef.current = 0;
+      clearCaptchaRetry();
+    } catch {
+      setCaptchaLoadHint("Không thể khởi tạo CAPTCHA. Đang thử tải lại...");
+      setCaptchaScriptLoaded(false);
+      scheduleCaptchaRetry();
+    }
+  }, [captchaEnabled, captchaScriptLoaded, captchaSiteKey, clearCaptchaRetry, scheduleCaptchaRetry]);
 
   const resetCaptcha = useCallback(() => {
     setCaptchaToken("");
@@ -61,8 +114,24 @@ export function VolunteerForm({ sourcePage, positions }: VolunteerFormProps) {
   }, []);
 
   useEffect(() => {
+    if (!captchaEnabled || captchaScriptLoaded || typeof window === "undefined") return;
+    if (window.turnstile) {
+      setCaptchaScriptLoaded(true);
+      return;
+    }
+
+    scheduleCaptchaRetry();
+  }, [captchaEnabled, captchaScriptLoaded, scheduleCaptchaRetry]);
+
+  useEffect(() => {
     renderCaptchaWidget();
   }, [renderCaptchaWidget]);
+
+  useEffect(() => {
+    return () => {
+      clearCaptchaRetry();
+    };
+  }, [clearCaptchaRetry]);
 
   function getFieldError(name: string) {
     return fieldErrors[name];
@@ -150,7 +219,15 @@ export function VolunteerForm({ sourcePage, positions }: VolunteerFormProps) {
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
           strategy="afterInteractive"
-          onLoad={() => setCaptchaScriptLoaded(true)}
+          onLoad={() => {
+            captchaRetryCountRef.current = 0;
+            setCaptchaScriptLoaded(true);
+            setCaptchaLoadHint(null);
+          }}
+          onError={() => {
+            setCaptchaLoadHint("Không thể tải script CAPTCHA. Đang thử lại...");
+            scheduleCaptchaRetry();
+          }}
         />
       ) : null}
       <div>
@@ -228,8 +305,9 @@ export function VolunteerForm({ sourcePage, positions }: VolunteerFormProps) {
 
       {captchaEnabled ? (
         <div className="space-y-2">
-          <Label>CAPTCHA chống bot</Label>
+          <Label>CAPTCHA - reload lại trang nếu như không hiện</Label>
           <div ref={captchaContainerRef} className="min-h-[68px] rounded-md border border-dashed p-2" />
+          {captchaLoadHint ? <p className="text-xs text-amber-700">{captchaLoadHint}</p> : null}
         </div>
       ) : null}
 

@@ -27,12 +27,12 @@ export default function AboutPage() {
           </div>
           <div className="relative min-h-72 overflow-hidden rounded-3xl">
             <Image
-              src={mediaAssets.about}
-              alt="Cộng đồng tham gia hoạt động xanh tại Việt Nam"
+              src={mediaAssets.activity}
+              alt="Cộng đồng tham gia hoạt động môi trường tại Việt Nam"
               fill
               priority
               sizes="(max-width: 1024px) 100vw, 45vw"
-              className="object-cover"
+              className="object-cover object-center"
             />
           </div>
         </div>
