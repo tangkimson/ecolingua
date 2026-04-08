@@ -173,9 +173,21 @@ Dung Neon/Supabase/Railway va lay connection string PostgreSQL.
 ### 5.4 Build settings
 
 - Install Command: `pnpm install`
-- Build Command: `pnpm prisma:generate && pnpm prisma:deploy && pnpm build`
+- Build Command: `pnpm prisma:generate && pnpm build`
 
-### 5.5 Deploy
+### 5.5 Chay migration production (tach rieng khoi build)
+
+Khong nen chay `prisma migrate deploy` trong Build Command vi build co the fail neu DB tam thoi khong ket noi duoc.
+
+Chay migration bang may local/CI khi can:
+
+```bash
+pnpm prisma:deploy
+```
+
+Dam bao env `POSTGRES_PRISMA_URL` trung voi database production truoc khi chay lenh.
+
+### 5.6 Deploy
 
 Bam Deploy. Sau khi xong:
 
