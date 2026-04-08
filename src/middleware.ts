@@ -13,8 +13,6 @@ const SECURITY_HEADERS = {
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const requestHeaders = new Headers(req.headers);
-  requestHeaders.set("x-pathname", pathname);
 
   const isProtectedAdminPage = pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
   const isProtectedAdminApi = pathname.startsWith("/api/admin") && pathname !== "/api/admin/login/precheck";
@@ -32,15 +30,13 @@ export async function middleware(req: NextRequest) {
 
       const url = new URL("/admin/login", req.url);
       url.searchParams.set("callbackUrl", pathname);
-      return NextResponse.redirect(url);
+      const redirectResponse = NextResponse.redirect(url);
+      Object.entries(SECURITY_HEADERS).forEach(([key, value]) => redirectResponse.headers.set(key, value));
+      return redirectResponse;
     }
   }
 
-  const response = NextResponse.next({
-    request: {
-      headers: requestHeaders
-    }
-  });
+  const response = NextResponse.next();
   Object.entries(SECURITY_HEADERS).forEach(([key, value]) => response.headers.set(key, value));
   return response;
 }
