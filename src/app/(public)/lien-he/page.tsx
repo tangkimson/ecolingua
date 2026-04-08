@@ -1,4 +1,4 @@
-import { Clock3, Instagram, Mail, MapPin, Megaphone, MessageSquare } from "lucide-react";
+import { AtSign, Clock3, Mail, MapPin, Megaphone, MessageSquare } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { FACEBOOK_FANPAGE_URL, INSTAGRAM_URL } from "@/lib/constants";
@@ -94,7 +94,7 @@ export default async function ContactPage() {
             <div className="space-y-3 rounded-xl border bg-muted/30 p-4 text-sm">
               <p className="font-medium text-eco-900">Instagram</p>
               <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-eco-700 hover:underline">
-                <Instagram className="size-4" />
+                <AtSign className="size-4" />
                 @ecolingua.vn
               </a>
             </div>
