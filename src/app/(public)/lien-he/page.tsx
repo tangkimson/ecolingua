@@ -1,7 +1,7 @@
-import { Clock3, Mail, MapPin, Megaphone, MessageSquare } from "lucide-react";
+import { Clock3, Instagram, Mail, MapPin, Megaphone, MessageSquare } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { FACEBOOK_FANPAGE_URL } from "@/lib/constants";
+import { FACEBOOK_FANPAGE_URL, INSTAGRAM_URL } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +28,9 @@ export default async function ContactPage() {
               </p>
               <p>
                 <strong>Fanpage:</strong> Ecolingua Vietnam
+              </p>
+              <p>
+                <strong>Instagram:</strong> @ecolingua.vn
               </p>
               <p>
                 <strong>Phạm vi:</strong> TP. HCM - Hoạt động toàn quốc
@@ -71,7 +74,7 @@ export default async function ContactPage() {
             <div>
               <h2 className="text-xl font-bold text-eco-900">Kênh liên hệ chính thức</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Để đảm bảo phản hồi nhanh và chính xác, EcoLingua hiện tiếp nhận liên hệ trực tiếp qua email và Fanpage.
+                Để đảm bảo phản hồi nhanh và chính xác, EcoLingua hiện tiếp nhận liên hệ trực tiếp qua email, Fanpage và Instagram.
               </p>
             </div>
             <div className="space-y-3 rounded-xl border bg-muted/30 p-4 text-sm">
@@ -88,12 +91,24 @@ export default async function ContactPage() {
                 EcoLingua Vietnam
               </a>
             </div>
+            <div className="space-y-3 rounded-xl border bg-muted/30 p-4 text-sm">
+              <p className="font-medium text-eco-900">Instagram</p>
+              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-eco-700 hover:underline">
+                <Instagram className="size-4" />
+                @ecolingua.vn
+              </a>
+            </div>
             <Button asChild className="w-full rounded-xl">
               <a href="mailto:ecolinguavietnam@gmail.com?subject=Li%C3%AAn%20h%E1%BB%87%20h%E1%BB%A3p%20t%C3%A1c%20c%C3%B9ng%20EcoLingua%20Vietnam">Gửi email ngay</a>
             </Button>
             <Button asChild variant="outline" className="w-full rounded-xl">
               <a href={FACEBOOK_FANPAGE_URL} target="_blank" rel="noopener noreferrer">
                 Nhắn qua fanpage
+              </a>
+            </Button>
+            <Button asChild variant="outline" className="w-full rounded-xl">
+              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
+                Theo dõi Instagram
               </a>
             </Button>
             <div className="rounded-xl border bg-eco-50/70 p-4 text-sm text-eco-900">
