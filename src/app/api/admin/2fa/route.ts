@@ -4,15 +4,20 @@ import QRCode from "qrcode";
 
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
-import { isTrustedOrigin } from "@/lib/security";
+import { getClientIp, isTrustedOrigin } from "@/lib/security";
+import { simpleRateLimit } from "@/lib/rate-limit";
 import {
   buildOtpAuthUri,
   decryptTotpSecret,
   encryptTotpSecret,
   generateTotpSecret,
-  verifyTotpCode
+  verifyTotpCode,
+  verifyTotpCodeDetailed
 } from "@/lib/totp";
 import { disableTwoFactorSchema, enableTwoFactorSchema } from "@/lib/validations";
+
+const TWO_FA_VERIFY_RATE_MAX = 8;
+const TWO_FA_VERIFY_RATE_WINDOW_MS = 5 * 60_000;
 
 async function getCurrentAdmin(adminId: string) {
   return prisma.adminUser.findUnique({
@@ -71,6 +76,12 @@ export async function PUT(req: Request) {
   const session = await requireAdmin();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const ip = getClientIp();
+  const rate = await simpleRateLimit(`admin-2fa-enable:${session.user.id}:${ip}`, TWO_FA_VERIFY_RATE_MAX, TWO_FA_VERIFY_RATE_WINDOW_MS);
+  if (!rate.success) {
+    return NextResponse.json({ error: "Bạn thử mã quá nhiều lần. Vui lòng đợi vài phút rồi thử lại." }, { status: 429 });
+  }
+
   let payload: unknown;
   try {
     payload = await req.json();
@@ -84,7 +95,23 @@ export async function PUT(req: Request) {
   if (!admin?.twoFactorSecret) return NextResponse.json({ error: "Bạn cần tạo mã QR trước." }, { status: 400 });
 
   const secret = decryptTotpSecret(admin.twoFactorSecret);
-  if (!secret || !verifyTotpCode(secret, parsed.data.code)) {
+  if (!secret) {
+    return NextResponse.json({ error: "Không thể đọc secret 2FA. Vui lòng tạo mã QR mới." }, { status: 400 });
+  }
+
+  const verifyResult = verifyTotpCodeDetailed(secret, parsed.data.code, 2);
+  if (!verifyResult.valid) {
+    const driftCheck = verifyTotpCodeDetailed(secret, parsed.data.code, 6);
+    if (driftCheck.valid) {
+      return NextResponse.json(
+        {
+          error:
+            "Mã 2FA đúng nhưng lệch thời gian giữa thiết bị và máy chủ. Hãy bật đồng bộ thời gian tự động trên điện thoại, rồi nhập mã mới nhất."
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json({ error: "Mã xác thực không đúng." }, { status: 400 });
   }
 
@@ -101,6 +128,12 @@ export async function DELETE(req: Request) {
 
   const session = await requireAdmin();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const ip = getClientIp();
+  const rate = await simpleRateLimit(`admin-2fa-disable:${session.user.id}:${ip}`, TWO_FA_VERIFY_RATE_MAX, TWO_FA_VERIFY_RATE_WINDOW_MS);
+  if (!rate.success) {
+    return NextResponse.json({ error: "Bạn thử mã quá nhiều lần. Vui lòng đợi vài phút rồi thử lại." }, { status: 429 });
+  }
 
   let payload: unknown;
   try {

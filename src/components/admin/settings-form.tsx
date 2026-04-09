@@ -23,6 +23,14 @@ export function SettingsForm({
   const [disableCode, setDisableCode] = useState("");
   const [twoFactorLoading, setTwoFactorLoading] = useState(false);
 
+  async function parseJsonSafely<T>(res: Response) {
+    try {
+      return (await res.json()) as T;
+    } catch {
+      return {} as T;
+    }
+  }
+
   async function fetchTwoFactorStatus() {
     try {
       const res = await fetch("/api/admin/2fa", { cache: "no-store" });
@@ -64,15 +72,15 @@ export function SettingsForm({
     try {
       setTwoFactorLoading(true);
       const res = await fetch("/api/admin/2fa", { method: "POST" });
-      const data = (await res.json()) as { qrCodeDataUrl?: string; manualKey?: string; error?: string };
+      const data = await parseJsonSafely<{ qrCodeDataUrl?: string; manualKey?: string; error?: string }>(res);
       if (!res.ok || !data.qrCodeDataUrl || !data.manualKey) throw new Error(data.error || "Setup failed");
       setQrCodeDataUrl(data.qrCodeDataUrl);
       setManualKey(data.manualKey);
       setVerifyCode("");
       setTwoFactorEnabled(false);
       toast.success("Đã tạo QR. Hãy quét mã và nhập mã xác thực để bật 2FA.");
-    } catch {
-      toast.error("Không thể khởi tạo 2FA.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không thể khởi tạo 2FA.");
     } finally {
       setTwoFactorLoading(false);
     }
@@ -85,9 +93,9 @@ export function SettingsForm({
       const res = await fetch("/api/admin/2fa", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: verifyCode })
+        body: JSON.stringify({ code: verifyCode.replace(/\D/g, "").trim() })
       });
-      const data = (await res.json()) as { error?: string };
+      const data = await parseJsonSafely<{ error?: string }>(res);
       if (!res.ok) throw new Error(data.error || "Enable failed");
 
       setQrCodeDataUrl("");
@@ -95,8 +103,8 @@ export function SettingsForm({
       setVerifyCode("");
       setTwoFactorEnabled(true);
       toast.success("Đã bật 2FA cho tài khoản admin.");
-    } catch {
-      toast.error("Mã xác thực không đúng hoặc đã hết hạn.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Mã xác thực không đúng hoặc đã hết hạn.");
     } finally {
       setTwoFactorLoading(false);
     }
@@ -111,18 +119,18 @@ export function SettingsForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           password: disablePassword,
-          code: disableCode
+          code: disableCode.replace(/\D/g, "").trim()
         })
       });
-      const data = (await res.json()) as { error?: string };
+      const data = await parseJsonSafely<{ error?: string }>(res);
       if (!res.ok) throw new Error(data.error || "Disable failed");
 
       setDisablePassword("");
       setDisableCode("");
       setTwoFactorEnabled(false);
       toast.success("Đã tắt 2FA.");
-    } catch {
-      toast.error("Không thể tắt 2FA. Kiểm tra lại mật khẩu và mã xác thực.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không thể tắt 2FA. Kiểm tra lại mật khẩu và mã xác thực.");
     } finally {
       setTwoFactorLoading(false);
     }
@@ -198,6 +206,9 @@ export function SettingsForm({
             <Button type="submit" disabled={twoFactorLoading || verifyCode.length !== 6}>
               {twoFactorLoading ? "Đang xác minh..." : "Xác minh và bật 2FA"}
             </Button>
+            <p className="text-xs text-muted-foreground">
+              Nếu báo sai mã liên tục, hãy đồng bộ thời gian tự động trên điện thoại và thử lại bằng mã mới nhất.
+            </p>
           </form>
         )}
 

@@ -61,3 +61,19 @@ export function verifyTotpCode(secret: string, code: string) {
   });
   return totp.validate({ token: normalizeTotpCode(code), window: 1 }) !== null;
 }
+
+export function verifyTotpCodeDetailed(secret: string, code: string, window = 1) {
+  const totp = new OTPAuth.TOTP({
+    issuer: TOTP_ISSUER,
+    algorithm: "SHA1",
+    digits: 6,
+    period: 30,
+    secret: OTPAuth.Secret.fromBase32(secret)
+  });
+
+  const delta = totp.validate({ token: normalizeTotpCode(code), window });
+  return {
+    valid: delta !== null,
+    delta
+  };
+}
