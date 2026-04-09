@@ -186,6 +186,9 @@ pnpm prisma:deploy
 
 Dam bao env `POSTGRES_PRISMA_URL` trung voi database production truoc khi chay lenh.
 
+Luu y: phien ban hien tai co them bang `RateLimitBucket` de luu rate-limit dang nhap/2FA tren PostgreSQL.
+Neu bo qua migration, app se tu fallback sang in-memory limiter (van chay duoc) nhung khong dong bo rate-limit giua nhieu instance.
+
 ### 5.6 Deploy
 
 Bam Deploy. Sau khi xong:

@@ -48,3 +48,14 @@ model AdminSetting {
   siteMeta      String?
   updatedAt     DateTime @updatedAt
 }
+
+model RateLimitBucket {
+  key       String   @id
+  count     Int
+  resetAt   DateTime
+  lockUntil DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([updatedAt])
+  @@index([resetAt, lockUntil])
+}
