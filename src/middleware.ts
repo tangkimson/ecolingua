@@ -13,11 +13,17 @@ const SECURITY_HEADERS = {
 };
 
 export async function middleware(req: NextRequest) {
-  assertSecurityEnv();
   const { pathname } = req.nextUrl;
 
   const isProtectedAdminPage = pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
   const isProtectedAdminApi = pathname.startsWith("/api/admin") && pathname !== "/api/admin/login/precheck";
+  const isAuthOrPrecheckPath = pathname.startsWith("/api/auth") || pathname === "/api/admin/login/precheck";
+
+  if (isProtectedAdminPage || isProtectedAdminApi || isAuthOrPrecheckPath) {
+    // Keep public pages online even if admin secrets are misconfigured.
+    // Security-sensitive flows still fail closed.
+    assertSecurityEnv();
+  }
 
   if (isProtectedAdminPage || isProtectedAdminApi) {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
