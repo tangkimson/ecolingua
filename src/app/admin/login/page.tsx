@@ -104,7 +104,11 @@ export default function AdminLoginPage() {
   async function handleCredentialStep() {
     const normalizedIdentifier = identifier.trim();
     if (!normalizedIdentifier) {
-      setErrorMessage("Vui lòng nhập email hoặc username.");
+      setErrorMessage("Vui lòng nhập email quản trị.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedIdentifier)) {
+      setErrorMessage("Email quản trị không hợp lệ.");
       return;
     }
     if (password.length < 6) {
@@ -225,7 +229,7 @@ export default function AdminLoginPage() {
           {step === "credentials" ? (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="identifier">Email hoặc username</Label>
+                <Label htmlFor="identifier">Email quản trị</Label>
                 <Input
                   id="identifier"
                   name="identifier"
@@ -233,7 +237,7 @@ export default function AdminLoginPage() {
                   autoComplete="username"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="admin@ecolingua.vn hoặc admin"
+                  placeholder="admin@ecolingua.vn"
                   required
                 />
               </div>

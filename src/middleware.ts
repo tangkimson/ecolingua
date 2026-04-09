@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { assertSecurityEnv } from "@/lib/env";
 
 const SECURITY_HEADERS = {
   "X-Frame-Options": "DENY",
@@ -12,6 +13,7 @@ const SECURITY_HEADERS = {
 };
 
 export async function middleware(req: NextRequest) {
+  assertSecurityEnv();
   const { pathname } = req.nextUrl;
 
   const isProtectedAdminPage = pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
@@ -25,6 +27,9 @@ export async function middleware(req: NextRequest) {
       if (isProtectedAdminApi) {
         const unauthorized = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         Object.entries(SECURITY_HEADERS).forEach(([key, value]) => unauthorized.headers.set(key, value));
+        if (process.env.NODE_ENV === "production") {
+          unauthorized.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+        }
         return unauthorized;
       }
 
@@ -32,12 +37,18 @@ export async function middleware(req: NextRequest) {
       url.searchParams.set("callbackUrl", pathname);
       const redirectResponse = NextResponse.redirect(url);
       Object.entries(SECURITY_HEADERS).forEach(([key, value]) => redirectResponse.headers.set(key, value));
+      if (process.env.NODE_ENV === "production") {
+        redirectResponse.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+      }
       return redirectResponse;
     }
   }
 
   const response = NextResponse.next();
   Object.entries(SECURITY_HEADERS).forEach(([key, value]) => response.headers.set(key, value));
+  if (process.env.NODE_ENV === "production") {
+    response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
   return response;
 }
 

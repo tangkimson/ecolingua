@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
+import { assertSecurityEnv } from "@/lib/env";
 
 const PRECHECK_COOKIE_NAME = "admin_login_precheck";
 const PRECHECK_MAX_AGE_SECONDS = 5 * 60;
@@ -18,8 +19,9 @@ function base64UrlDecode(value: string) {
 }
 
 function getPrecheckSecret() {
-  const secret = process.env.NEXTAUTH_SECRET || process.env.TOTP_ENCRYPTION_KEY;
-  if (!secret) throw new Error("Missing NEXTAUTH_SECRET (or TOTP_ENCRYPTION_KEY) for admin login precheck.");
+  assertSecurityEnv();
+  const secret = process.env.PRECHECK_HMAC_SECRET;
+  if (!secret) throw new Error("Missing PRECHECK_HMAC_SECRET for admin login precheck.");
   return secret;
 }
 

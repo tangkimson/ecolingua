@@ -1,3 +1,6 @@
+import sanitizeHtmlLib from "sanitize-html";
+import { isAllowedAdminImageSource, normalizeImageSource } from "@/lib/post-images";
+
 function escapeHtml(input: string) {
   return input
     .replace(/&/g, "&amp;")
@@ -11,20 +14,12 @@ export function isLikelyHtml(content: string) {
   return /<\/?[a-z][\s\S]*>/i.test(content.trim());
 }
 
-function sanitizeStyle(styleValue: string) {
-  const value = styleValue.trim();
-  if (!value) return "";
-  if (/(expression|@import|javascript:|url\s*\()/i.test(value)) return "";
-  if (!/^[a-z0-9:;#%(),.\-\s/]+$/i.test(value)) return "";
-  return value;
-}
-
 function sanitizeUrl(value: string, forImage = false) {
   const normalized = value.trim().replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
   if (!normalized) return "";
 
   const lower = normalized.toLowerCase();
-  if (forImage && lower.startsWith("data:image/")) return normalized;
+  if (forImage && isAllowedAdminImageSource(normalized)) return normalizeImageSource(normalized);
   if (lower.startsWith("http://") || lower.startsWith("https://")) return normalized;
   if (!forImage && (lower.startsWith("mailto:") || lower.startsWith("tel:"))) return normalized;
   if (normalized.startsWith("/") || normalized.startsWith("#")) return normalized;
@@ -32,37 +27,63 @@ function sanitizeUrl(value: string, forImage = false) {
 }
 
 function sanitizeHtml(content: string) {
-  let safe = content;
-
-  // Strip high-risk tags entirely.
-  safe = safe.replace(/<\s*(script|style|iframe|object|embed|link|meta|base|form|input|button|textarea|select|option|frame|frameset)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "");
-  safe = safe.replace(/<\s*(script|style|iframe|object|embed|link|meta|base|form|input|button|textarea|select|option|frame|frameset)\b[^>]*\/?>/gi, "");
-
-  // Remove inline event handlers (onclick, onerror, ...).
-  safe = safe.replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
-
-  // Sanitize href values.
-  safe = safe.replace(/\s+href\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi, (_full, dQuoted, sQuoted, unquoted) => {
-    const raw = String(dQuoted ?? sQuoted ?? unquoted ?? "");
-    const cleaned = sanitizeUrl(raw, false);
-    return cleaned ? ` href="${cleaned}"` : "";
+  return sanitizeHtmlLib(content, {
+    allowedTags: [
+      "p",
+      "br",
+      "strong",
+      "em",
+      "u",
+      "s",
+      "a",
+      "ul",
+      "ol",
+      "li",
+      "blockquote",
+      "h2",
+      "h3",
+      "h4",
+      "img",
+      "code",
+      "pre"
+    ],
+    allowedAttributes: {
+      a: ["href", "target", "rel"],
+      img: ["src", "alt", "title", "width", "height"]
+    },
+    allowedSchemes: ["http", "https", "mailto", "tel"],
+    transformTags: {
+      a: (_tagName: string, attribs: Record<string, string>) => {
+        const href = sanitizeUrl(attribs.href || "", false);
+        const normalizedTarget = attribs.target === "_blank" ? "_blank" : undefined;
+        return {
+          tagName: "a",
+          attribs: {
+            ...(href ? { href } : {}),
+            ...(normalizedTarget ? { target: normalizedTarget, rel: "noopener noreferrer" } : {})
+          }
+        };
+      },
+      img: (_tagName: string, attribs: Record<string, string>) => {
+        const src = sanitizeUrl(attribs.src || "", true);
+        return {
+          tagName: "img",
+          attribs: {
+            ...(src ? { src } : {}),
+            ...(attribs.alt ? { alt: attribs.alt } : {}),
+            ...(attribs.title ? { title: attribs.title } : {})
+          }
+        };
+      }
+    },
+    exclusiveFilter(frame: { tag: string; attribs: Record<string, string> }) {
+      if (frame.tag === "img") {
+        const src = frame.attribs.src || "";
+        return !src;
+      }
+      return false;
+    }
   });
-
-  // Sanitize src values.
-  safe = safe.replace(/\s+src\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi, (_full, dQuoted, sQuoted, unquoted) => {
-    const raw = String(dQuoted ?? sQuoted ?? unquoted ?? "");
-    const cleaned = sanitizeUrl(raw, true);
-    return cleaned ? ` src="${cleaned}"` : "";
-  });
-
-  // Sanitize inline style while keeping safe formatting for authored content.
-  safe = safe.replace(/\s+style\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi, (_full, dQuoted, sQuoted, unquoted) => {
-    const raw = String(dQuoted ?? sQuoted ?? unquoted ?? "");
-    const cleaned = sanitizeStyle(raw);
-    return cleaned ? ` style="${cleaned}"` : "";
-  });
-
-  return safe;
 }
 
 export function normalizePostContent(content: string) {

@@ -1,4 +1,4 @@
-const LOCAL_POST_UPLOAD_PREFIX = "/uploads/posts/";
+export const LOCAL_POST_UPLOAD_PREFIX = "/uploads/posts/";
 
 function stripHash(value: string) {
   return value.trim().split("#", 1)[0] ?? "";
@@ -36,10 +36,6 @@ export function normalizeImageSource(value: string) {
 export function isAllowedAdminImageSource(value: string) {
   const normalized = normalizeImageSource(value);
   if (!normalized) return false;
-
-  if (/^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i.test(normalized)) {
-    return true;
-  }
 
   if (isLocalPostUploadPath(normalized)) {
     return true;
@@ -83,4 +79,10 @@ export function findDisallowedImageSources(content: string, allowedLegacySources
   }
 
   return invalidSources;
+}
+
+export function extractLocalUploadPathsFromHtml(content: string) {
+  return extractImageSourcesFromHtml(content)
+    .map(normalizeImageSource)
+    .filter((source) => source.startsWith(LOCAL_POST_UPLOAD_PREFIX));
 }

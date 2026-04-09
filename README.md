@@ -62,17 +62,20 @@ Copy `.env.example` thanh `.env`, sau do dam bao cac bien toi thieu:
 POSTGRES_PRISMA_URL="postgresql://postgres:postgres@localhost:5432/ecolingua?schema=public"
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-long-random-secret"
+PRECHECK_HMAC_SECRET="another-long-random-secret"
 TOTP_ENCRYPTION_KEY="another-long-random-secret"
 NEXT_PUBLIC_TURNSTILE_SITE_KEY="your-turnstile-site-key"
 TURNSTILE_SECRET_KEY="your-turnstile-secret-key"
 NEXT_PUBLIC_SITE_URL="http://localhost:3000"
+TRUST_PROXY="false"
 ```
 
 Tuỳ chon (seed):
 
 ```env
 SEED_ADMIN_EMAIL="admin@xanhvietnam.local"
-SEED_ADMIN_PASSWORD="Admin@12345"
+SEED_ADMIN_PASSWORD="your-strong-password"
+SEED_ALLOW_PASSWORD_RESET="false"
 ```
 
 ### 3.5 Khoi tao DB + seed
@@ -102,7 +105,7 @@ Mo [http://localhost:3000](http://localhost:3000) va dang nhap admin tai [http:/
 
 ### 3.8 Login flow admin (moi)
 
-1. Nhap email/username + mat khau.
+1. Nhap email admin + mat khau.
 2. Hoan thanh CAPTCHA.
 3. Server xac minh password + CAPTCHA thanh cong moi cho qua buoc OTP.
 4. Neu account bat 2FA, nhap ma OTP de vao admin.
@@ -157,11 +160,14 @@ Dung Neon/Supabase/Railway va lay connection string PostgreSQL.
 - `POSTGRES_PRISMA_URL`
 - `NEXTAUTH_URL` (vd: `https://your-app.vercel.app`)
 - `NEXTAUTH_SECRET`
+- `PRECHECK_HMAC_SECRET`
 - `TOTP_ENCRYPTION_KEY`
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
 - `TURNSTILE_SECRET_KEY`
 - `NEXT_PUBLIC_SITE_URL`
+- `TRUST_PROXY` (`true` tren Vercel/reverse proxy)
 - (tuỳ chon) `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`
+- (tuỳ chon) `SEED_ALLOW_PASSWORD_RESET` (mac dinh `false`)
 
 ### 5.4 Build settings
 
@@ -203,3 +209,54 @@ pnpm prisma:migrate --name <migration_name>
 pnpm prisma:deploy
 pnpm prisma:seed
 ```
+
+---
+
+## 7) Security hardening checklist (production)
+
+### 7.1 Bat buoc truoc khi go-live
+
+- Khong de `CAPTCHA_BYPASS=true` tren production.
+- Su dung secret rieng cho tung muc:
+  - `NEXTAUTH_SECRET`
+  - `PRECHECK_HMAC_SECRET`
+  - `TOTP_ENCRYPTION_KEY`
+- Bat buoc 2FA cho tat ca tai khoan admin.
+- Khong cho phep data URL trong noi dung bai viet/anh bia.
+- Neu deploy tren Vercel (filesystem read-only), endpoint upload local se tra loi 503.
+
+### 7.2 Backup & restore target (Vercel + Neon)
+
+- Muc tieu da chot: **RPO 4h / RTO 2h**.
+- De xuat van hanh:
+  - Chay backup DB moi 4 gio.
+  - Luu it nhat 7 ngay backup gan nhat.
+  - Drill restore toi thieu 1 lan/thang.
+- Neu dung upload local tren runtime co disk, backup them `public/uploads/posts`.
+
+### 7.3 Log retention
+
+- Luu log bao mat toi thieu **90 ngay**.
+- Uu tien giu cac su kien:
+  - Dang nhap that bai/lien tiep
+  - Lockout rate limit
+  - Bat/tat 2FA
+  - Sua/xoa bai viet va FAQ
+
+### 7.4 Incident runbook (uu tien)
+
+1. **Immediate lockdown**: tam khoa dang nhap admin.
+2. **Force logout**: doi `NEXTAUTH_SECRET` de invalidate toan bo admin session.
+3. **Forensic-first**: dong bang log, xac dinh timeline, IP, account anh huong.
+4. Sau khi khoi phuc: rotate `PRECHECK_HMAC_SECRET`, danh gia lai 2FA va mat khau admin.
+
+### 7.5 Release gate moi lan deploy
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm build
+```
+
+- Xac nhan env production day du va hop le truoc khi deploy.
+- Khong chay seed voi `SEED_ALLOW_PASSWORD_RESET=true` neu khong co phe duyet ro rang.

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
-import { faqSchema } from "@/lib/validations";
+import { cuidParamSchema, faqSchema } from "@/lib/validations";
 import { requireAdmin } from "@/lib/admin";
 import { isTrustedOrigin } from "@/lib/security";
 
@@ -15,22 +15,29 @@ const faqPublishSchema = z.object({
 
 export async function PUT(req: Request, { params }: Context) {
   if (!isTrustedOrigin()) return NextResponse.json({ error: "Origin không hợp lệ." }, { status: 403 });
+  const idParsed = cuidParamSchema.safeParse(params.id);
+  if (!idParsed.success) return NextResponse.json({ error: "ID FAQ không hợp lệ." }, { status: 400 });
 
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const existingFaq = await prisma.faq.findUnique({
-    where: { id: params.id },
+    where: { id: idParsed.data },
     select: { id: true }
   });
   if (!existingFaq) return NextResponse.json({ error: "FAQ not found" }, { status: 404 });
 
-  const body = await req.json();
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Dữ liệu gửi lên không hợp lệ." }, { status: 400 });
+  }
   const parsed = faqSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const faq = await prisma.faq.update({
-    where: { id: params.id },
+    where: { id: idParsed.data },
     data: parsed.data
   });
 
@@ -43,22 +50,29 @@ export async function PUT(req: Request, { params }: Context) {
 
 export async function PATCH(req: Request, { params }: Context) {
   if (!isTrustedOrigin()) return NextResponse.json({ error: "Origin không hợp lệ." }, { status: 403 });
+  const idParsed = cuidParamSchema.safeParse(params.id);
+  if (!idParsed.success) return NextResponse.json({ error: "ID FAQ không hợp lệ." }, { status: 400 });
 
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const existingFaq = await prisma.faq.findUnique({
-    where: { id: params.id },
+    where: { id: idParsed.data },
     select: { id: true }
   });
   if (!existingFaq) return NextResponse.json({ error: "FAQ not found" }, { status: 404 });
 
-  const body = await req.json();
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Dữ liệu gửi lên không hợp lệ." }, { status: 400 });
+  }
   const parsed = faqPublishSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const faq = await prisma.faq.update({
-    where: { id: params.id },
+    where: { id: idParsed.data },
     data: {
       published: parsed.data.published
     }
@@ -73,17 +87,19 @@ export async function PATCH(req: Request, { params }: Context) {
 
 export async function DELETE(_: Request, { params }: Context) {
   if (!isTrustedOrigin()) return NextResponse.json({ error: "Origin không hợp lệ." }, { status: 403 });
+  const idParsed = cuidParamSchema.safeParse(params.id);
+  if (!idParsed.success) return NextResponse.json({ error: "ID FAQ không hợp lệ." }, { status: 400 });
 
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const existingFaq = await prisma.faq.findUnique({
-    where: { id: params.id },
+    where: { id: idParsed.data },
     select: { id: true }
   });
   if (!existingFaq) return NextResponse.json({ error: "FAQ not found" }, { status: 404 });
 
-  await prisma.faq.delete({ where: { id: params.id } });
+  await prisma.faq.delete({ where: { id: idParsed.data } });
   revalidatePath("/tham-gia");
   revalidatePath("/lien-he");
   revalidatePath("/admin/faqs");

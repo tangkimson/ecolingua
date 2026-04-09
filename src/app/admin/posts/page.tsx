@@ -15,7 +15,18 @@ export default async function AdminPostsPage() {
   }
 
   const posts = await prisma.post.findMany({
-    orderBy: { updatedAt: "desc" }
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      excerpt: true,
+      coverImage: true,
+      published: true,
+      publishedAt: true,
+      createdAt: true,
+      updatedAt: true
+    }
   });
 
   const totalPosts = posts.length;

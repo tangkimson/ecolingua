@@ -6,10 +6,19 @@ import { FACEBOOK_FANPAGE_URL, SITE_NAME, SITE_URL } from "@/lib/constants";
 import { PostContent } from "@/components/posts/post-content";
 import { AdaptiveImageFrame } from "@/components/ui/adaptive-image-frame";
 import { parseCoverImageTransform } from "@/lib/image-presentation";
+import { slugParamSchema } from "@/lib/validations";
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const slugParsed = slugParamSchema.safeParse(params.slug);
+  if (!slugParsed.success) {
+    return {
+      title: `Tin tức | ${SITE_NAME}`,
+      description: "Bài viết không tồn tại hoặc chưa được xuất bản."
+    };
+  }
+
   const post = await prisma.post.findUnique({
-    where: { slug: params.slug },
+    where: { slug: slugParsed.data },
     select: { title: true, excerpt: true, published: true, coverImage: true, slug: true }
   });
 
@@ -39,8 +48,11 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function NewsDetailPage({ params }: { params: { slug: string } }) {
+  const slugParsed = slugParamSchema.safeParse(params.slug);
+  if (!slugParsed.success) return notFound();
+
   const post = await prisma.post.findUnique({
-    where: { slug: params.slug }
+    where: { slug: slugParsed.data }
   });
 
   if (!post || !post.published) return notFound();

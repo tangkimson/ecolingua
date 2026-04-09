@@ -1,12 +1,14 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 import * as OTPAuth from "otpauth";
+import { assertSecurityEnv } from "@/lib/env";
 
 const TOTP_ISSUER = "EcoLingua Admin";
 
 function encryptionKey() {
-  const source = process.env.TOTP_ENCRYPTION_KEY || process.env.NEXTAUTH_SECRET;
+  assertSecurityEnv();
+  const source = process.env.TOTP_ENCRYPTION_KEY;
   if (!source) {
-    throw new Error("Missing TOTP_ENCRYPTION_KEY or NEXTAUTH_SECRET for 2FA encryption.");
+    throw new Error("Missing TOTP_ENCRYPTION_KEY for 2FA encryption.");
   }
   return createHash("sha256").update(source).digest();
 }

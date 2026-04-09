@@ -2,10 +2,20 @@ import { PrismaClient } from "@prisma/client";
 import { hash } from "bcryptjs";
 
 const prisma = new PrismaClient();
+const isProduction = process.env.NODE_ENV === "production";
 
 async function main() {
-  const adminEmail = process.env.SEED_ADMIN_EMAIL || "ecolinguavietnam@gmail.com";
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "Admin@12345";
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || (isProduction ? "" : "admin@xanhvietnam.local");
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "";
+  const allowPasswordReset = process.env.SEED_ALLOW_PASSWORD_RESET === "true";
+
+  if (!adminEmail) {
+    throw new Error("Missing SEED_ADMIN_EMAIL. Refusing to seed admin without explicit email.");
+  }
+  if (!adminPassword) {
+    throw new Error("Missing SEED_ADMIN_PASSWORD. Refusing to seed admin with default password.");
+  }
+
   const passwordHash = await hash(adminPassword, 10);
   const faqSeeds = [
     {
@@ -42,12 +52,16 @@ async function main() {
 
   await prisma.adminUser.upsert({
     where: { email: adminEmail },
-    update: {
-      passwordHash,
-      role: "ADMIN",
-      twoFactorEnabled: false,
-      twoFactorSecret: null
-    },
+    update: allowPasswordReset
+      ? {
+          passwordHash,
+          role: "ADMIN",
+          twoFactorEnabled: false,
+          twoFactorSecret: null
+        }
+      : {
+          role: "ADMIN"
+        },
     create: {
       email: adminEmail,
       passwordHash,
@@ -58,7 +72,7 @@ async function main() {
 
   console.log("Seeded admin account:");
   console.log(`- Email: ${adminEmail}`);
-  console.log(`- Password: ${adminPassword}`);
+  console.log(`- Password reset applied: ${allowPasswordReset ? "yes" : "no"}`);
 
   let createdFaqCount = 0;
   for (const item of faqSeeds) {

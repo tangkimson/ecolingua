@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+const ADMIN_IDENTIFIER_MAX = 200;
+const POST_CONTENT_MAX = 1_000_000;
+const COVER_IMAGE_URL_MAX = 2048;
+
 export const postSchema = z.object({
   title: z.string().min(5).max(180),
   slug: z
@@ -8,8 +12,8 @@ export const postSchema = z.object({
     .max(180)
     .regex(/^[a-z0-9-]+$/, "Slug chỉ gồm chữ thường, số và dấu gạch ngang"),
   excerpt: z.string().min(20).max(300),
-  content: z.string().min(50),
-  coverImage: z.string().trim().min(1, "Ảnh bìa là bắt buộc").max(8_000_000),
+  content: z.string().min(50).max(POST_CONTENT_MAX),
+  coverImage: z.string().trim().min(1, "Ảnh bìa là bắt buộc").max(COVER_IMAGE_URL_MAX),
   published: z.boolean()
 });
 
@@ -22,7 +26,7 @@ export const faqSchema = z.object({
 });
 
 export const adminLoginSchema = z.object({
-  identifier: z.string().trim().min(3).max(200),
+  identifier: z.string().trim().email("Vui lòng nhập email hợp lệ.").max(ADMIN_IDENTIFIER_MAX),
   password: z.string().min(6).max(128),
   totpCode: z
     .string()
@@ -32,10 +36,18 @@ export const adminLoginSchema = z.object({
 });
 
 export const adminPrecheckSchema = z.object({
-  identifier: z.string().trim().min(3).max(200),
+  identifier: z.string().trim().email("Vui lòng nhập email hợp lệ.").max(ADMIN_IDENTIFIER_MAX),
   password: z.string().min(6).max(128),
   captchaToken: z.string().trim().min(1, "Vui lòng xác minh CAPTCHA")
 });
+
+export const cuidParamSchema = z.string().trim().regex(/^c[a-z0-9]{24}$/i, "ID không hợp lệ.");
+export const slugParamSchema = z
+  .string()
+  .trim()
+  .min(3)
+  .max(180)
+  .regex(/^[a-z0-9-]+$/, "Slug không hợp lệ.");
 
 export const adminSettingSchema = z.object({
   googleFormUrl: z

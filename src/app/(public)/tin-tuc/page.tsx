@@ -24,7 +24,15 @@ export const metadata: Metadata = {
 export default async function NewsPage() {
   const posts = await prisma.post.findMany({
     where: { published: true },
-    orderBy: { publishedAt: "desc" }
+    orderBy: { publishedAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      excerpt: true,
+      coverImage: true,
+      publishedAt: true
+    }
   });
   const latestPost = posts[0] ?? null;
   const featuredTopics = ["Hoạt động cộng đồng", "Giáo dục môi trường", "Lối sống xanh", "Tái chế thực hành"];

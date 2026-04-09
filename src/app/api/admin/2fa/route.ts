@@ -71,7 +71,12 @@ export async function PUT(req: Request) {
   const session = await requireAdmin();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const payload = await req.json();
+  let payload: unknown;
+  try {
+    payload = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Dữ liệu gửi lên không hợp lệ." }, { status: 400 });
+  }
   const parsed = enableTwoFactorSchema.safeParse(payload);
   if (!parsed.success) return NextResponse.json({ error: "Mã xác thực không hợp lệ." }, { status: 400 });
 
@@ -97,7 +102,12 @@ export async function DELETE(req: Request) {
   const session = await requireAdmin();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const payload = await req.json();
+  let payload: unknown;
+  try {
+    payload = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Dữ liệu gửi lên không hợp lệ." }, { status: 400 });
+  }
   const parsed = disableTwoFactorSchema.safeParse(payload);
   if (!parsed.success) return NextResponse.json({ error: "Dữ liệu không hợp lệ." }, { status: 400 });
 

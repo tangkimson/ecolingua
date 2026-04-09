@@ -1,3 +1,5 @@
+import { assertSecurityEnv } from "@/lib/env";
+
 type CaptchaVerificationResult = {
   success: boolean;
   error?: string;
@@ -11,12 +13,17 @@ type TurnstileResponse = {
 const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 export async function verifyCaptchaToken(token: string, remoteIp?: string): Promise<CaptchaVerificationResult> {
+  assertSecurityEnv();
   if (!token?.trim()) {
     return { success: false, error: "Vui lòng hoàn thành CAPTCHA." };
   }
 
-  if (process.env.CAPTCHA_BYPASS === "true") {
+  const bypassEnabled = process.env.CAPTCHA_BYPASS === "true";
+  if (bypassEnabled && process.env.NODE_ENV !== "production") {
     return { success: true };
+  }
+  if (bypassEnabled && process.env.NODE_ENV === "production") {
+    return { success: false, error: "Cấu hình CAPTCHA không an toàn trên production." };
   }
 
   const secret = process.env.TURNSTILE_SECRET_KEY;

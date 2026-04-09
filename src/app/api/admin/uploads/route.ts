@@ -3,18 +3,16 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
+import sharp from "sharp";
 
 import { requireAdmin } from "@/lib/admin";
 import { isTrustedOrigin } from "@/lib/security";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const TYPE_TO_EXTENSION: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif"
-};
+const MAX_FILE_SIZE = 4 * 1024 * 1024;
+const MAX_DIMENSION = 4096;
+const MAX_TOTAL_PIXELS = 4096 * 4096;
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const OUTPUT_EXTENSION = "webp";
 
 function detectImageType(buffer: Buffer) {
   if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return "image/jpeg";
@@ -44,17 +42,6 @@ function detectImageType(buffer: Buffer) {
   ) {
     return "image/webp";
   }
-  if (
-    buffer.length >= 6 &&
-    buffer[0] === 0x47 &&
-    buffer[1] === 0x49 &&
-    buffer[2] === 0x46 &&
-    buffer[3] === 0x38 &&
-    (buffer[4] === 0x37 || buffer[4] === 0x39) &&
-    buffer[5] === 0x61
-  ) {
-    return "image/gif";
-  }
   return null;
 }
 
@@ -68,28 +55,48 @@ export async function POST(req: Request) {
   const file = formData.get("file");
   if (!(file instanceof File)) return NextResponse.json({ error: "Thiếu tệp ảnh." }, { status: 400 });
   if (!ALLOWED_TYPES.has(file.type)) return NextResponse.json({ error: "Định dạng ảnh không hỗ trợ." }, { status: 400 });
-  if (file.size > MAX_FILE_SIZE) return NextResponse.json({ error: "Ảnh vượt quá dung lượng 5MB." }, { status: 400 });
+  if (file.size > MAX_FILE_SIZE) return NextResponse.json({ error: "Ảnh vượt quá dung lượng 4MB." }, { status: 400 });
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const detectedType = detectImageType(buffer);
   if (!detectedType || !ALLOWED_TYPES.has(detectedType)) {
     return NextResponse.json({ error: "Nội dung tệp không phải ảnh hợp lệ." }, { status: 400 });
   }
-  const extension = TYPE_TO_EXTENSION[detectedType];
-  const fileName = `${Date.now()}-${randomUUID()}.${extension}`;
 
-  // Vercel serverless runtime has a read-only deployment filesystem, so writing
-  // to /var/task/public will fail. In that environment, return a data URL as
-  // a compatible fallback for inline rich-text images.
+  let processedBuffer: Buffer;
+  try {
+    const image = sharp(buffer, { failOn: "error" }).rotate();
+    const metadata = await image.metadata();
+    const width = metadata.width || 0;
+    const height = metadata.height || 0;
+    if (!width || !height) {
+      return NextResponse.json({ error: "Không đọc được kích thước ảnh." }, { status: 400 });
+    }
+    if (width > MAX_DIMENSION || height > MAX_DIMENSION || width * height > MAX_TOTAL_PIXELS) {
+      return NextResponse.json({ error: "Kích thước ảnh quá lớn. Tối đa 4096x4096." }, { status: 400 });
+    }
+
+    processedBuffer = await image
+      .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 82 })
+      .toBuffer();
+  } catch {
+    return NextResponse.json({ error: "Không thể xử lý ảnh tải lên." }, { status: 400 });
+  }
+
+  const fileName = `${Date.now()}-${randomUUID()}.${OUTPUT_EXTENSION}`;
+
   if (process.env.VERCEL) {
-    const base64 = buffer.toString("base64");
-    return NextResponse.json({ url: `data:${detectedType};base64,${base64}` });
+    return NextResponse.json(
+      { error: "Môi trường hiện tại không hỗ trợ lưu ảnh cục bộ. Vui lòng dùng runtime có persistent disk." },
+      { status: 503 }
+    );
   }
 
   const uploadDir = path.join(process.cwd(), "public", "uploads", "posts");
   const filePath = path.join(uploadDir, fileName);
   await mkdir(uploadDir, { recursive: true });
-  await writeFile(filePath, buffer);
+  await writeFile(filePath, processedBuffer);
 
   return NextResponse.json({ url: `/uploads/posts/${fileName}` });
 }

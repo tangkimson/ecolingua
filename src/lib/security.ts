@@ -14,9 +14,17 @@ export function sanitizeText(value: string) {
 
 export function getClientIp() {
   const headerStore = headers();
+  const trustProxy = process.env.TRUST_PROXY === "true";
   const xForwardedFor = headerStore.get("x-forwarded-for");
+  const xRealIp = headerStore.get("x-real-ip");
+
+  if (trustProxy && xForwardedFor) {
+    return xForwardedFor.split(",")[0]?.trim() || "unknown";
+  }
+
+  if (xRealIp) return xRealIp;
   if (xForwardedFor) return xForwardedFor.split(",")[0]?.trim() || "unknown";
-  return headerStore.get("x-real-ip") || "unknown";
+  return "unknown";
 }
 
 export function isTrustedOrigin() {

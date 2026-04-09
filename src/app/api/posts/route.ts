@@ -12,7 +12,18 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const posts = await prisma.post.findMany({
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      excerpt: true,
+      coverImage: true,
+      published: true,
+      publishedAt: true,
+      createdAt: true,
+      updatedAt: true
+    }
   });
   return NextResponse.json(posts, { status: 200 });
 }

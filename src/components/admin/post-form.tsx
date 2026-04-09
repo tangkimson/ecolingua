@@ -85,6 +85,7 @@ type DraftPayload = PostFormValue & {
 
 type FormErrors = Partial<Record<keyof PostFormValue, string>>;
 type LinkActionState = "idle" | "success";
+const MAX_POST_CONTENT_LENGTH = 1_000_000;
 
 type EditorLinkItem = {
   id: string;
@@ -519,6 +520,9 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
     if (payload.excerpt.trim().length < 20) nextErrors.excerpt = "Mô tả ngắn cần ít nhất 20 ký tự.";
     if (payload.excerpt.trim().length > 300) nextErrors.excerpt = "Mô tả ngắn tối đa 300 ký tự.";
     if (payload.content.trim().length < 50) nextErrors.content = "Nội dung cần chi tiết hơn (ít nhất 50 ký tự).";
+    if (payload.content.length > MAX_POST_CONTENT_LENGTH) {
+      nextErrors.content = "Nội dung quá dài. Vui lòng rút gọn trước khi lưu.";
+    }
     if (!isAllowedAdminImageSource(payload.coverImage.trim())) {
       nextErrors.coverImage = "Ảnh bìa phải được tải lên từ thiết bị.";
     }
@@ -1259,7 +1263,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                       <Input
                         id="inlineImage"
                         type="file"
-                        accept="image/png,image/jpeg,image/webp,image/gif"
+                          accept="image/png,image/jpeg,image/webp"
                         onChange={(event) => {
                           const file = event.target.files?.[0];
                           if (!file) return;
@@ -1467,7 +1471,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                           ref={replaceImageInputRef}
                           type="file"
                           className="hidden"
-                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          accept="image/png,image/jpeg,image/webp"
                           onChange={(event) => {
                             const nextFile = event.target.files?.[0];
                             if (!nextFile) return;
@@ -1519,7 +1523,7 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                 <Input
                   id="coverImageUpload"
                   type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  accept="image/png,image/jpeg,image/webp"
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     if (!file) return;
