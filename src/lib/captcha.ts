@@ -9,13 +9,18 @@ type TurnstileResponse = {
 };
 
 const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+const captchaBypassEnabled = process.env.CAPTCHA_BYPASS === "true";
+
+if (process.env.NODE_ENV === "production" && captchaBypassEnabled) {
+  throw new Error("CAPTCHA_BYPASS cannot be enabled in production.");
+}
 
 export async function verifyCaptchaToken(token: string, remoteIp?: string): Promise<CaptchaVerificationResult> {
   if (!token?.trim()) {
     return { success: false, error: "Vui lòng hoàn thành CAPTCHA." };
   }
 
-  if (process.env.CAPTCHA_BYPASS === "true") {
+  if (captchaBypassEnabled) {
     return { success: true };
   }
 

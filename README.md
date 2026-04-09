@@ -66,13 +66,21 @@ TOTP_ENCRYPTION_KEY="another-long-random-secret"
 NEXT_PUBLIC_TURNSTILE_SITE_KEY="your-turnstile-site-key"
 TURNSTILE_SECRET_KEY="your-turnstile-secret-key"
 NEXT_PUBLIC_SITE_URL="http://localhost:3000"
+CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_API_KEY="your-cloudinary-api-key"
+CLOUDINARY_API_SECRET="your-cloudinary-api-secret"
+CLOUDINARY_UPLOAD_FOLDER="ecolingua/posts"
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME="your-cloud-name"
+UPSTASH_REDIS_REST_URL="https://..."
+UPSTASH_REDIS_REST_TOKEN="..."
+CLOUDINARY_WEBHOOK_SIGNING_SECRET="random-shared-secret"
 ```
 
 Tuỳ chon (seed):
 
 ```env
 SEED_ADMIN_EMAIL="admin@xanhvietnam.local"
-SEED_ADMIN_PASSWORD="Admin@12345"
+SEED_ADMIN_PASSWORD="use-a-strong-password-at-least-12-chars"
 ```
 
 ### 3.5 Khoi tao DB + seed
@@ -161,6 +169,14 @@ Dung Neon/Supabase/Railway va lay connection string PostgreSQL.
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
 - `TURNSTILE_SECRET_KEY`
 - `NEXT_PUBLIC_SITE_URL`
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+- `CLOUDINARY_UPLOAD_FOLDER`
+- `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+- `CLOUDINARY_WEBHOOK_SIGNING_SECRET` (optional)
 - (tuỳ chon) `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`
 
 ### 5.4 Build settings
@@ -188,6 +204,25 @@ Bam Deploy. Sau khi xong:
 - Dang nhap admin
 - Kiem tra CRUD post + FAQ
 - Kiem tra bat/tat 2FA
+- Kiem tra upload anh bai viet tren Cloudinary
+
+### 5.7 Cloudinary quota monitoring (free)
+
+- Theo doi dashboard usage tren Cloudinary.
+- Tao webhook trong Cloudinary va tro vao:
+  - `POST https://<your-domain>/api/cloudinary/webhook`
+- Dat header secret:
+  - `x-ecolingua-webhook-secret: <CLOUDINARY_WEBHOOK_SIGNING_SECRET>`
+- Kiem tra log Vercel voi prefix `[cloudinary-webhook]` de canh bao som quota.
+
+### 5.8 GitHub security guardrails (free)
+
+- Bat Dependabot (`.github/dependabot.yml`)
+- Bat CodeQL (`.github/workflows/codeql.yml`)
+- Bat CI bat buoc (`.github/workflows/ci.yml`)
+- Khuyen nghi branch protection:
+  - Yeu cau cac check: `ci / verify`, `codeql / analyze`
+  - Cam merge khi checks fail
 
 ---
 
@@ -203,3 +238,8 @@ pnpm prisma:migrate --name <migration_name>
 pnpm prisma:deploy
 pnpm prisma:seed
 ```
+
+## 7) Security docs
+
+- Neon least privilege: `docs/security/neon-least-privilege.md`
+- Go-live runbook: `docs/security/go-live-runbook.md`

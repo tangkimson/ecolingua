@@ -1,4 +1,5 @@
 const LOCAL_POST_UPLOAD_PREFIX = "/uploads/posts/";
+const DEFAULT_MAX_IMAGES_PER_POST = 10;
 
 function stripHash(value: string) {
   return value.trim().split("#", 1)[0] ?? "";
@@ -26,7 +27,20 @@ function collectTrustedHosts() {
     hosts.add(window.location.host.toLowerCase());
   }
 
+  const cloudinaryCloudName =
+    process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME;
+  if (cloudinaryCloudName) {
+    hosts.add("res.cloudinary.com");
+  }
+
   return hosts;
+}
+
+function isCloudinaryUploadPath(pathname: string) {
+  const cloudName = (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || "").trim();
+  if (!cloudName) return false;
+  const normalizedPath = pathname.replace(/\/{2,}/g, "/");
+  return normalizedPath.startsWith(`/${cloudName}/image/upload/`);
 }
 
 export function normalizeImageSource(value: string) {
@@ -48,7 +62,9 @@ export function isAllowedAdminImageSource(value: string) {
   try {
     const parsed = new URL(normalized);
     if (!/^https?:$/i.test(parsed.protocol)) return false;
-    if (!isLocalPostUploadPath(parsed.pathname)) return false;
+
+    const isAllowedPath = isLocalPostUploadPath(parsed.pathname) || isCloudinaryUploadPath(parsed.pathname);
+    if (!isAllowedPath) return false;
 
     const trustedHosts = collectTrustedHosts();
     if (!trustedHosts.size) return false;
@@ -83,4 +99,12 @@ export function findDisallowedImageSources(content: string, allowedLegacySources
   }
 
   return invalidSources;
+}
+
+export function countUniqueImageSources(content: string) {
+  return new Set(extractImageSourcesFromHtml(content).map(normalizeImageSource).filter(Boolean)).size;
+}
+
+export function exceedsMaxImagesPerPost(content: string, maxImages = DEFAULT_MAX_IMAGES_PER_POST) {
+  return countUniqueImageSources(content) > maxImages;
 }

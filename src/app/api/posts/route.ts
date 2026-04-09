@@ -5,7 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { postSchema } from "@/lib/validations";
 import { requireAdmin } from "@/lib/admin";
 import { isTrustedOrigin } from "@/lib/security";
-import { findDisallowedImageSources, isAllowedAdminImageSource } from "@/lib/post-images";
+import { extractPostImageAssets } from "@/lib/post-assets";
+import { countUniqueImageSources, findDisallowedImageSources, isAllowedAdminImageSource } from "@/lib/post-images";
+
+const MAX_IMAGES_PER_POST = 10;
 
 export async function GET() {
   const session = await requireAdmin();
@@ -48,11 +51,21 @@ export async function POST(req: Request) {
     );
   }
 
+  const imageCount = countUniqueImageSources(parsed.data.content);
+  if (imageCount > MAX_IMAGES_PER_POST) {
+    return NextResponse.json(
+      { error: { fieldErrors: { content: [`Tối đa ${MAX_IMAGES_PER_POST} ảnh trong một bài viết.`] } } },
+      { status: 400 }
+    );
+  }
+
   try {
+    const imageAssets = extractPostImageAssets(parsed.data.coverImage, parsed.data.content);
     const post = await prisma.post.create({
       data: {
         ...parsed.data,
-        publishedAt: parsed.data.published ? new Date() : null
+        publishedAt: parsed.data.published ? new Date() : null,
+        imageAssets
       }
     });
 

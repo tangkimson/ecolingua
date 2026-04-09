@@ -1,20 +1,14 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { randomUUID } from "node:crypto";
-
 import { NextResponse } from "next/server";
+import { imageSize } from "image-size";
 
+import { uploadImageToCloudinary, isCloudinaryConfigured } from "@/lib/cloudinary";
 import { requireAdmin } from "@/lib/admin";
+import { simpleRateLimit } from "@/lib/rate-limit";
 import { isTrustedOrigin } from "@/lib/security";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_DIMENSION = 4096;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const TYPE_TO_EXTENSION: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif"
-};
 
 function detectImageType(buffer: Buffer) {
   if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return "image/jpeg";
@@ -64,6 +58,16 @@ export async function POST(req: Request) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  if (!isCloudinaryConfigured()) {
+    return NextResponse.json({ error: "Máy chủ chưa cấu hình Cloudinary." }, { status: 503 });
+  }
+
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const rate = await simpleRateLimit(`admin-upload:${ip}`, 20, 60_000);
+  if (!rate.success) {
+    return NextResponse.json({ error: "Bạn thao tác quá nhanh. Vui lòng thử lại sau." }, { status: 429 });
+  }
+
   const formData = await req.formData();
   const file = formData.get("file");
   if (!(file instanceof File)) return NextResponse.json({ error: "Thiếu tệp ảnh." }, { status: 400 });
@@ -75,21 +79,29 @@ export async function POST(req: Request) {
   if (!detectedType || !ALLOWED_TYPES.has(detectedType)) {
     return NextResponse.json({ error: "Nội dung tệp không phải ảnh hợp lệ." }, { status: 400 });
   }
-  const extension = TYPE_TO_EXTENSION[detectedType];
-  const fileName = `${Date.now()}-${randomUUID()}.${extension}`;
 
-  // Vercel serverless runtime has a read-only deployment filesystem, so writing
-  // to /var/task/public will fail. In that environment, return a data URL as
-  // a compatible fallback for inline rich-text images.
-  if (process.env.VERCEL) {
-    const base64 = buffer.toString("base64");
-    return NextResponse.json({ url: `data:${detectedType};base64,${base64}` });
+  const size = imageSize(buffer);
+  if (!size.width || !size.height) {
+    return NextResponse.json({ error: "Không thể đọc kích thước ảnh." }, { status: 400 });
+  }
+  if (size.width > MAX_DIMENSION || size.height > MAX_DIMENSION) {
+    return NextResponse.json(
+      { error: `Kích thước ảnh quá lớn. Vui lòng dùng ảnh tối đa ${MAX_DIMENSION}x${MAX_DIMENSION}.` },
+      { status: 400 }
+    );
   }
 
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "posts");
-  const filePath = path.join(uploadDir, fileName);
-  await mkdir(uploadDir, { recursive: true });
-  await writeFile(filePath, buffer);
+  try {
+    const uploaded = await uploadImageToCloudinary(buffer, detectedType);
+    return NextResponse.json({
+      url: uploaded.url,
+      publicId: uploaded.publicId,
+      width: uploaded.width ?? size.width,
+      height: uploaded.height ?? size.height,
+      bytes: uploaded.bytes ?? file.size
+    });
+  } catch {
+    return NextResponse.json({ error: "Không thể tải ảnh lên Cloudinary." }, { status: 502 });
+  }
 
-  return NextResponse.json({ url: `/uploads/posts/${fileName}` });
 }

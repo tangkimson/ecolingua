@@ -13,9 +13,14 @@ import { verifyCaptchaToken } from "@/lib/captcha";
 import { prisma } from "@/lib/prisma";
 import { getClientIp, isTrustedOrigin } from "@/lib/security";
 import { adminPrecheckSchema } from "@/lib/validations";
-import { simpleRateLimit } from "@/lib/rate-limit";
+import { clearAuthFailures, getAuthLockStatus, registerAuthFailure, simpleRateLimit } from "@/lib/rate-limit";
 
 const INVALID_CREDENTIALS_ERROR = "Tài khoản hoặc mật khẩu không chính xác.";
+const AUTH_LOCK_ERROR = "Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau.";
+
+function authAttemptKey(identifier: string, ip: string) {
+  return `admin-login:${identifier}:${ip}`;
+}
 
 export async function POST(req: Request) {
   if (!isTrustedOrigin()) {
@@ -35,8 +40,15 @@ export async function POST(req: Request) {
   }
 
   const normalizedIdentifier = normalizeAdminIdentifier(parsed.data.identifier);
+  const loginKey = authAttemptKey(normalizedIdentifier, ip);
+  const lockStatus = await getAuthLockStatus(loginKey);
+  if (lockStatus.locked) {
+    return NextResponse.json({ error: AUTH_LOCK_ERROR }, { status: 429 });
+  }
+
   const captchaCheck = await verifyCaptchaToken(parsed.data.captchaToken, ip);
   if (!captchaCheck.success) {
+    await registerAuthFailure(loginKey);
     return NextResponse.json({ error: captchaCheck.error || "CAPTCHA không hợp lệ." }, { status: 400 });
   }
 
@@ -56,13 +68,17 @@ export async function POST(req: Request) {
       });
 
   if (!user) {
+    await registerAuthFailure(loginKey);
     return NextResponse.json({ error: INVALID_CREDENTIALS_ERROR }, { status: 401 });
   }
 
   const validPassword = await compare(parsed.data.password, user.passwordHash);
   if (!validPassword) {
+    await registerAuthFailure(loginKey);
     return NextResponse.json({ error: INVALID_CREDENTIALS_ERROR }, { status: 401 });
   }
+
+  await clearAuthFailures(loginKey);
 
   const precheckToken = buildPrecheckToken(normalizedIdentifier);
   cookies().set({

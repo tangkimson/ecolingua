@@ -3,11 +3,14 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { deleteImageFromCloudinary, isCloudinaryConfigured } from "@/lib/cloudinary";
 import { prisma } from "@/lib/prisma";
 import { postSchema } from "@/lib/validations";
 import { requireAdmin } from "@/lib/admin";
 import { isTrustedOrigin } from "@/lib/security";
+import { extractPostImageAssets, parsePersistedPostImageAssets } from "@/lib/post-assets";
 import {
+  countUniqueImageSources,
   extractImageSourcesFromHtml,
   findDisallowedImageSources,
   isAllowedAdminImageSource,
@@ -15,6 +18,7 @@ import {
 } from "@/lib/post-images";
 
 type Context = { params: { id: string } };
+const MAX_IMAGES_PER_POST = 10;
 
 function buildLegacyImageSourceSet(existingPost: { coverImage: string; content: string }) {
   const legacySources = new Set<string>();
@@ -35,7 +39,7 @@ export async function PUT(req: Request, { params }: Context) {
 
   const existingPost = await prisma.post.findUnique({
     where: { id: params.id },
-    select: { id: true, slug: true, publishedAt: true, coverImage: true, content: true }
+    select: { id: true, slug: true, publishedAt: true, coverImage: true, content: true, imageAssets: true }
   });
   if (!existingPost) return NextResponse.json({ error: "Post not found" }, { status: 404 });
 
@@ -66,16 +70,38 @@ export async function PUT(req: Request, { params }: Context) {
     );
   }
 
+  const imageCount = countUniqueImageSources(parsed.data.content);
+  if (imageCount > MAX_IMAGES_PER_POST) {
+    return NextResponse.json(
+      { error: { fieldErrors: { content: [`Tối đa ${MAX_IMAGES_PER_POST} ảnh trong một bài viết.`] } } },
+      { status: 400 }
+    );
+  }
+
   const nextPublishedAt = parsed.data.published ? (existingPost.publishedAt ?? new Date()) : null;
 
   try {
+    const previousAssets = (() => {
+      const persisted = parsePersistedPostImageAssets(existingPost.imageAssets);
+      if (persisted.length) return persisted;
+      return extractPostImageAssets(existingPost.coverImage, existingPost.content);
+    })();
+    const nextAssets = extractPostImageAssets(parsed.data.coverImage, parsed.data.content);
+
     const post = await prisma.post.update({
       where: { id: params.id },
       data: {
         ...parsed.data,
-        publishedAt: nextPublishedAt
+        publishedAt: nextPublishedAt,
+        imageAssets: nextAssets
       }
     });
+
+    if (isCloudinaryConfigured()) {
+      const nextIds = new Set(nextAssets.map((asset) => asset.publicId));
+      const orphaned = previousAssets.filter((asset) => !nextIds.has(asset.publicId));
+      await Promise.allSettled(orphaned.map((asset) => deleteImageFromCloudinary(asset.publicId)));
+    }
 
     revalidatePath("/admin/posts");
     revalidatePath("/tin-tuc");
@@ -148,12 +174,23 @@ export async function DELETE(_: Request, { params }: Context) {
 
   const existingPost = await prisma.post.findUnique({
     where: { id: params.id },
-    select: { id: true, slug: true }
+    select: { id: true, slug: true, coverImage: true, content: true, imageAssets: true }
   });
   if (!existingPost) return NextResponse.json({ error: "Post not found" }, { status: 404 });
 
   try {
+    const previousAssets = (() => {
+      const persisted = parsePersistedPostImageAssets(existingPost.imageAssets);
+      if (persisted.length) return persisted;
+      return extractPostImageAssets(existingPost.coverImage, existingPost.content);
+    })();
+
     await prisma.post.delete({ where: { id: params.id } });
+
+    if (isCloudinaryConfigured()) {
+      await Promise.allSettled(previousAssets.map((asset) => deleteImageFromCloudinary(asset.publicId)));
+    }
+
     revalidatePath("/admin/posts");
     revalidatePath("/tin-tuc");
     revalidatePath(`/tin-tuc/${existingPost.slug}`);

@@ -4,8 +4,15 @@ import { hash } from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const adminEmail = process.env.SEED_ADMIN_EMAIL || "ecolinguavietnam@gmail.com";
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "Admin@12345";
+  const adminEmail = process.env.SEED_ADMIN_EMAIL?.trim();
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD?.trim();
+
+  if (!adminEmail || !adminPassword) {
+    throw new Error("Missing SEED_ADMIN_EMAIL or SEED_ADMIN_PASSWORD. Refusing to seed weak/default credentials.");
+  }
+  if (adminPassword.length < 12) {
+    throw new Error("SEED_ADMIN_PASSWORD must be at least 12 characters.");
+  }
   const passwordHash = await hash(adminPassword, 10);
   const faqSeeds = [
     {
@@ -56,9 +63,7 @@ async function main() {
     }
   });
 
-  console.log("Seeded admin account:");
-  console.log(`- Email: ${adminEmail}`);
-  console.log(`- Password: ${adminPassword}`);
+  console.log("Seeded admin account.");
 
   let createdFaqCount = 0;
   for (const item of faqSeeds) {
@@ -78,7 +83,7 @@ async function main() {
     });
     createdFaqCount += 1;
   }
-  console.log(`- Seeded FAQ items: +${createdFaqCount} (tham-gia/lien-he)`);
+  console.log(`Seeded FAQ items: +${createdFaqCount} (tham-gia/lien-he)`);
 }
 
 main()

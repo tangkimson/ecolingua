@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { EditorContent, useEditor } from "@tiptap/react";
+import imageCompression from "browser-image-compression";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
@@ -53,7 +54,7 @@ import { PostContent } from "@/components/posts/post-content";
 import { AdaptiveImageFrame } from "@/components/ui/adaptive-image-frame";
 import { normalizePostContent } from "@/lib/post-content";
 import { formatCoverImageTransform, parseCoverImageTransform } from "@/lib/image-presentation";
-import { findDisallowedImageSources, isAllowedAdminImageSource } from "@/lib/post-images";
+import { countUniqueImageSources, findDisallowedImageSources, isAllowedAdminImageSource } from "@/lib/post-images";
 import { cn } from "@/lib/utils";
 
 type PostFormValue = {
@@ -85,6 +86,9 @@ type DraftPayload = PostFormValue & {
 
 type FormErrors = Partial<Record<keyof PostFormValue, string>>;
 type LinkActionState = "idle" | "success";
+const MAX_IMAGES_PER_POST = 10;
+const CLIENT_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+const CLIENT_OPTIMIZED_TARGET_MB = 2;
 
 type EditorLinkItem = {
   id: string;
@@ -119,6 +123,20 @@ async function parseJsonSafely(response: Response) {
   } catch {
     return null;
   }
+}
+
+async function optimizeImageForUpload(file: File) {
+  const compressed = await imageCompression(file, {
+    maxSizeMB: CLIENT_OPTIMIZED_TARGET_MB,
+    maxWidthOrHeight: 2560,
+    useWebWorker: true,
+    initialQuality: 0.85
+  });
+
+  if (compressed.size > CLIENT_UPLOAD_MAX_BYTES) {
+    throw new Error("Ảnh quá lớn sau khi tối ưu. Vui lòng chọn ảnh nhỏ hơn 5MB.");
+  }
+  return compressed;
 }
 
 function redirectToAdminLogin() {
@@ -330,13 +348,14 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
   const hasUnsavedChanges = currentSnapshot !== savedSnapshot;
 
   async function uploadLocalImage(file: File) {
+    const optimizedFile = await optimizeImageForUpload(file);
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", optimizedFile);
     const res = await fetch("/api/admin/uploads", {
       method: "POST",
       body: formData
     });
-    const result = (await res.json()) as { url?: string; error?: string };
+    const result = (await res.json()) as { url?: string; publicId?: string; error?: string };
     if (!res.ok || !result.url) {
       throw new Error(result.error || "Không thể tải ảnh lên.");
     }
@@ -527,6 +546,9 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
     if (invalidImages.length > 0) {
       nextErrors.content = "Nội dung chứa ảnh URL/link ngoài. Chỉ cho phép ảnh tải lên từ thiết bị.";
     }
+    if (countUniqueImageSources(payload.content) > MAX_IMAGES_PER_POST) {
+      nextErrors.content = `Tối đa ${MAX_IMAGES_PER_POST} ảnh trong một bài viết.`;
+    }
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -651,6 +673,11 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
   async function handleInsertImage() {
     if (!imageFile || !editor) {
       toast.error("Vui lòng chọn ảnh trước khi chèn.");
+      return;
+    }
+
+    if (countUniqueImageSources(content) >= MAX_IMAGES_PER_POST) {
+      toast.error(`Đã đạt giới hạn ${MAX_IMAGES_PER_POST} ảnh cho một bài viết.`);
       return;
     }
 
@@ -1263,6 +1290,11 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                         onChange={(event) => {
                           const file = event.target.files?.[0];
                           if (!file) return;
+                          if (file.size > CLIENT_UPLOAD_MAX_BYTES) {
+                            toast.error("Ảnh vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.");
+                            event.currentTarget.value = "";
+                            return;
+                          }
                           if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
                           setImageFile(file);
                           setImagePreviewUrl(URL.createObjectURL(file));
@@ -1523,6 +1555,11 @@ export function PostForm({ mode, postId, defaultValues, metadata }: PostFormProp
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     if (!file) return;
+                    if (file.size > CLIENT_UPLOAD_MAX_BYTES) {
+                      toast.error("Ảnh vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.");
+                      event.currentTarget.value = "";
+                      return;
+                    }
                     if (coverImagePreviewUrl) URL.revokeObjectURL(coverImagePreviewUrl);
                     setCoverImageFile(file);
                     setCoverImagePreviewUrl(URL.createObjectURL(file));

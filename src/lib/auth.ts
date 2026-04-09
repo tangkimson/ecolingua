@@ -9,6 +9,7 @@ import {
   verifyPrecheckToken
 } from "@/lib/admin-login-flow";
 import { prisma } from "@/lib/prisma";
+import { clearAuthFailures, getAuthLockStatus, registerAuthFailure } from "@/lib/rate-limit";
 import { adminLoginSchema } from "@/lib/validations";
 import { decryptTotpSecret, verifyTotpCode } from "@/lib/totp";
 
@@ -24,6 +25,20 @@ function getCookieFromHeader(headerValue: string | undefined, cookieName: string
     }
   }
   return null;
+}
+
+function getForwardedIp(headers: Record<string, string | string[] | undefined> | undefined) {
+  const xForwardedForRaw = headers?.["x-forwarded-for"];
+  const xForwardedFor = Array.isArray(xForwardedForRaw) ? xForwardedForRaw[0] : xForwardedForRaw;
+  if (xForwardedFor) return xForwardedFor.split(",")[0]?.trim() || "unknown";
+
+  const xRealIpRaw = headers?.["x-real-ip"];
+  const xRealIp = Array.isArray(xRealIpRaw) ? xRealIpRaw[0] : xRealIpRaw;
+  return xRealIp || "unknown";
+}
+
+function authAttemptKey(identifier: string, ip: string) {
+  return `admin-login:${identifier}:${ip}`;
 }
 
 export const authOptions: NextAuthOptions = {
@@ -50,9 +65,18 @@ export const authOptions: NextAuthOptions = {
         if (!parsed.success) return null;
 
         const normalizedIdentifier = normalizeAdminIdentifier(parsed.data.identifier);
+        const sourceHeaders = req?.headers as Record<string, string | string[] | undefined> | undefined;
+        const ip = getForwardedIp(sourceHeaders);
+        const loginKey = authAttemptKey(normalizedIdentifier, ip);
+        const lockStatus = await getAuthLockStatus(loginKey);
+        if (lockStatus.locked) return null;
+
         const precheckCookie = getCookieFromHeader(req?.headers?.cookie, getPrecheckCookieName());
         const precheck = verifyPrecheckToken(precheckCookie);
-        if (!precheck || precheck.identifier !== normalizedIdentifier) return null;
+        if (!precheck || precheck.identifier !== normalizedIdentifier) {
+          await registerAuthFailure(loginKey);
+          return null;
+        }
 
         const user = isLikelyEmailIdentifier(normalizedIdentifier)
           ? await prisma.adminUser.findUnique({
@@ -66,21 +90,36 @@ export const authOptions: NextAuthOptions = {
                 }
               }
             });
-        if (!user) return null;
+        if (!user) {
+          await registerAuthFailure(loginKey);
+          return null;
+        }
 
         const valid = await compare(parsed.data.password, user.passwordHash);
-        if (!valid) return null;
+        if (!valid) {
+          await registerAuthFailure(loginKey);
+          return null;
+        }
 
         if (user.twoFactorEnabled) {
-          if (!user.twoFactorSecret || !parsed.data.totpCode) return null;
+          if (!user.twoFactorSecret || !parsed.data.totpCode) {
+            await registerAuthFailure(loginKey);
+            return null;
+          }
 
           try {
             const secret = decryptTotpSecret(user.twoFactorSecret);
-            if (!secret || !verifyTotpCode(secret, parsed.data.totpCode)) return null;
+            if (!secret || !verifyTotpCode(secret, parsed.data.totpCode)) {
+              await registerAuthFailure(loginKey);
+              return null;
+            }
           } catch {
+            await registerAuthFailure(loginKey);
             return null;
           }
         }
+
+        await clearAuthFailures(loginKey);
 
         return {
           id: user.id,

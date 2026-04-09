@@ -5,10 +5,14 @@ import { getToken } from "next-auth/jwt";
 const SECURITY_HEADERS = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
+  "X-DNS-Prefetch-Control": "off",
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Resource-Policy": "same-origin",
+  "Cross-Origin-Embedder-Policy": "unsafe-none",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
   "Content-Security-Policy":
-    "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; connect-src 'self' https:; font-src 'self' data:; frame-src 'self' https://challenges.cloudflare.com https://docs.google.com https://forms.google.com;"
+    "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; connect-src 'self' https://api.cloudinary.com https:; font-src 'self' data:; frame-src 'self' https://challenges.cloudflare.com https://docs.google.com https://forms.google.com; upgrade-insecure-requests;"
 };
 
 export async function middleware(req: NextRequest) {
@@ -38,6 +42,9 @@ export async function middleware(req: NextRequest) {
 
   const response = NextResponse.next();
   Object.entries(SECURITY_HEADERS).forEach(([key, value]) => response.headers.set(key, value));
+  if (process.env.NODE_ENV === "production") {
+    response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  }
   return response;
 }
 
