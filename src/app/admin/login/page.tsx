@@ -51,6 +51,11 @@ export default function AdminLoginPage() {
     if (step === "credentials") return "Xác thực tài khoản";
     return "Xác thực 2FA";
   }, [step]);
+  const stepDescription = useMemo(() => {
+    if (step === "credentials") return "Nhập email quản trị, mật khẩu và hoàn tất CAPTCHA.";
+    return "Nhập mã OTP 6 số từ ứng dụng xác thực để hoàn tất đăng nhập.";
+  }, [step]);
+  const normalizedTotpCode = useMemo(() => totpCode.replace(/\s+/g, ""), [totpCode]);
 
   const renderCaptchaWidget = useCallback(() => {
     if (!captchaEnabled || !captchaScriptLoaded || !captchaContainerRef.current || !window.turnstile) return;
@@ -180,7 +185,9 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-eco-50 to-white p-4 sm:p-6">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-eco-50 via-white to-eco-50/40 p-4 sm:p-6">
+      <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-eco-100/70 blur-3xl" aria-hidden="true" />
+      <div className="pointer-events-none absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-eco-200/40 blur-3xl" aria-hidden="true" />
       {captchaEnabled ? (
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
@@ -188,53 +195,71 @@ export default function AdminLoginPage() {
           onLoad={() => setCaptchaScriptLoaded(true)}
         />
       ) : null}
-      <Card className="w-full max-w-md border-eco-100 shadow-lg">
-        <CardHeader>
-          <div className="mb-2 flex justify-center">
+      <Card className="relative z-10 w-full max-w-lg border-eco-100/80 bg-white/95 shadow-[0_24px_70px_-38px_rgba(22,101,52,0.55)] backdrop-blur">
+        <CardHeader className="space-y-4 pb-4">
+          <div className="mx-auto mb-1 flex h-20 w-20 items-center justify-center rounded-2xl border border-eco-100 bg-white shadow-sm">
             <EcoLinguaLogo size="lg" />
           </div>
-          <CardTitle className="text-xl">Đăng nhập Admin Dashboard</CardTitle>
-          <p className="text-sm text-muted-foreground">Đăng nhập theo từng bước để tăng cường bảo mật.</p>
+          <div className="space-y-1 text-center">
+            <CardTitle className="text-2xl text-slate-900">Đăng nhập Admin Dashboard</CardTitle>
+            <p className="text-sm text-slate-600">Đăng nhập theo từng bước để tăng cường bảo mật.</p>
+          </div>
 
-          <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="mt-1 grid grid-cols-2 gap-2 rounded-2xl border border-eco-100 bg-eco-50/40 p-1.5">
             <div
-              className={`rounded-md border px-3 py-2 text-center text-xs font-medium ${
+              className={`rounded-xl border px-3 py-2 text-center text-xs font-semibold transition ${
                 step === "credentials"
-                  ? "border-eco-500 bg-eco-50 text-eco-700"
-                  : "border-muted bg-muted/30 text-muted-foreground"
+                  ? "border-eco-500 bg-white text-eco-800 shadow-sm"
+                  : "border-transparent bg-transparent text-slate-500"
               }`}
             >
               1. Tài khoản + CAPTCHA
             </div>
             <div
-              className={`rounded-md border px-3 py-2 text-center text-xs font-medium ${
+              className={`rounded-xl border px-3 py-2 text-center text-xs font-semibold transition ${
                 step === "otp"
-                  ? "border-eco-500 bg-eco-50 text-eco-700"
-                  : "border-muted bg-muted/30 text-muted-foreground"
+                  ? "border-eco-500 bg-white text-eco-800 shadow-sm"
+                  : "border-transparent bg-transparent text-slate-500"
               }`}
             >
               2. Mã OTP 2FA
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="mb-3 rounded-md border border-muted/80 bg-muted/30 px-3 py-2 text-sm font-medium">{stepTitle}</div>
+        <CardContent className="space-y-4">
+          <div className="rounded-xl border border-eco-100 bg-eco-50/50 px-4 py-3">
+            <p className="text-sm font-semibold text-eco-900">{stepTitle}</p>
+            <p className="mt-1 text-xs text-slate-600">{stepDescription}</p>
+          </div>
 
           {errorMessage ? (
-            <p role="alert" aria-live="assertive" className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p
+              role="alert"
+              aria-live="assertive"
+              className="rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-700"
+            >
               {errorMessage}
             </p>
           ) : null}
 
           {step === "credentials" ? (
-            <div className="space-y-4">
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleCredentialStep();
+              }}
+            >
               <div className="space-y-2">
-                <Label htmlFor="identifier">Email quản trị</Label>
+                <Label htmlFor="identifier" className="text-slate-700">
+                  Email quản trị
+                </Label>
                 <Input
                   id="identifier"
                   name="identifier"
                   type="text"
                   autoComplete="username"
+                  className="h-11 rounded-xl border-slate-200 bg-white/90"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="admin@ecolingua.vn"
@@ -242,12 +267,15 @@ export default function AdminLoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Mật khẩu</Label>
+                <Label htmlFor="password" className="text-slate-700">
+                  Mật khẩu
+                </Label>
                 <Input
                   id="password"
                   name="password"
                   type="password"
                   autoComplete="current-password"
+                  className="h-11 rounded-xl border-slate-200 bg-white/90"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -255,23 +283,34 @@ export default function AdminLoginPage() {
               </div>
               {captchaEnabled ? (
                 <div className="space-y-2">
-                  <Label>CAPTCHA</Label>
-                  <div ref={captchaContainerRef} className="min-h-[68px] rounded-md border border-dashed p-2" />
+                  <Label className="text-slate-700">CAPTCHA</Label>
+                  <div
+                    ref={captchaContainerRef}
+                    className="min-h-[72px] rounded-xl border border-dashed border-slate-300 bg-white p-2.5"
+                  />
                 </div>
               ) : (
-                <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                <p className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                   CAPTCHA chưa được cấu hình. Thiết lập `NEXT_PUBLIC_TURNSTILE_SITE_KEY` và `TURNSTILE_SECRET_KEY` để đăng nhập.
                 </p>
               )}
 
-              <Button className="w-full" type="button" disabled={loading || (captchaEnabled && !captchaToken)} onClick={handleCredentialStep}>
+              <Button className="h-11 w-full rounded-xl text-sm" type="submit" disabled={loading || (captchaEnabled && !captchaToken)}>
                 {loading ? "Đang xác minh..." : "Tiếp tục"}
               </Button>
-            </div>
+            </form>
           ) : (
-            <div className="space-y-4">
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleOtpStep();
+              }}
+            >
               <div className="space-y-2">
-                <Label htmlFor="totpCode">Mã xác thực 2FA</Label>
+                <Label htmlFor="totpCode" className="text-slate-700">
+                  Mã xác thực 2FA
+                </Label>
                 <Input
                   id="totpCode"
                   name="totpCode"
@@ -282,18 +321,22 @@ export default function AdminLoginPage() {
                   maxLength={6}
                   value={totpCode}
                   onChange={(e) => setTotpCode(e.target.value)}
+                  className="h-11 rounded-xl border-slate-200 bg-white text-center text-base tracking-[0.24em]"
                 />
+                <p className="text-xs text-slate-500">Mẹo: mở ứng dụng Authenticator để lấy mã mới nhất.</p>
               </div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Button type="button" variant="outline" onClick={goBackToCredentials} disabled={loading}>
+                <Button type="button" variant="outline" className="h-11 rounded-xl" onClick={goBackToCredentials} disabled={loading}>
                   Quay lại
                 </Button>
-                <Button type="button" onClick={handleOtpStep} disabled={loading}>
+                <Button type="submit" className="h-11 rounded-xl" disabled={loading || normalizedTotpCode.length !== 6}>
                   {loading ? "Đang xác thực..." : "Đăng nhập"}
                 </Button>
               </div>
-            </div>
+            </form>
           )}
+
+          <p className="text-center text-xs text-slate-500">Phiên đăng nhập được bảo vệ bằng CAPTCHA và xác thực 2 lớp.</p>
         </CardContent>
       </Card>
     </div>
